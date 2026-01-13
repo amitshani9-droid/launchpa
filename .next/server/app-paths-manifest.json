@@ -1,0 +1,21 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/generate/route": "app/api/generate/route.js",
+  "/checkout/page": "app/checkout/page.js",
+  "/create/page": "app/create/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/help/page": "app/help/page.js",
+  "/how-it-works/page": "app/how-it-works/page.js",
+  "/icon.png/route": "app/icon.png/route.js",
+  "/login/page": "app/login/page.js",
+  "/my-sites/page": "app/my-sites/page.js",
+  "/page": "app/page.js",
+  "/pricing/page": "app/pricing/page.js",
+  "/privacy/page": "app/privacy/page.js",
+  "/result/page": "app/result/page.js",
+  "/simulate/page": "app/simulate/page.js",
+  "/templates/page": "app/templates/page.js",
+  "/terms/page": "app/terms/page.js",
+  "/thanks/page": "app/thanks/page.js"
+}

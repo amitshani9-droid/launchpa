@@ -1,0 +1,21 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/generate/route": "/api/generate",
+  "/checkout/page": "/checkout",
+  "/create/page": "/create",
+  "/dashboard/page": "/dashboard",
+  "/help/page": "/help",
+  "/how-it-works/page": "/how-it-works",
+  "/icon.png/route": "/icon.png",
+  "/login/page": "/login",
+  "/my-sites/page": "/my-sites",
+  "/page": "/",
+  "/pricing/page": "/pricing",
+  "/privacy/page": "/privacy",
+  "/result/page": "/result",
+  "/simulate/page": "/simulate",
+  "/templates/page": "/templates",
+  "/terms/page": "/terms",
+  "/thanks/page": "/thanks"
+}
