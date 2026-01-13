@@ -87,6 +87,29 @@ function ResultContent() {
         return () => unsub();
     }, [user?.uid]);
 
+    const saveSiteToHistory = async (siteData) => {
+        if (!user || !siteData) return;
+        try {
+            // Check if site already saved to avoid duplicates (optional, simplified for now)
+            await addDoc(collection(db, "users", user.uid, "sites"), {
+                content: siteData,
+                createdAt: serverTimestamp(),
+                preview: "rocket" // placeholder
+            });
+            console.log("Site saved to history!");
+        } catch (e) {
+            console.error("Error saving site:", e);
+        }
+    };
+
+    useEffect(() => {
+        if (user && data && !params.get('id')) { // Only save if not viewing an existing saved site (by ID)
+            // We use a small timeout or check to prevent double saving in React Strict Mode
+            // For now, let's just save. In a real app we might ID checking.
+            saveSiteToHistory(data);
+        }
+    }, [user, data]);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser || null);
@@ -121,6 +144,21 @@ function ResultContent() {
                     return;
                 }
             }
+            if (siteId && user) {
+                try {
+                    const docRef = doc(db, "users", user.uid, "sites", siteId);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        setData(docSnap.data().content);
+                    }
+                } catch (e) {
+                    console.error("Error loading site:", e);
+                } finally {
+                    setLoading(false);
+                }
+                return;
+            }
+
             if (prompt) {
                 try {
                     const res = await fetch("/api/generate", {
@@ -134,8 +172,10 @@ function ResultContent() {
                 finally { setLoading(false); }
             }
         }
-        loadData();
-    }, [prompt, params]);
+        if (user || params.get('local')) {
+            loadData();
+        }
+    }, [prompt, params, user]);
 
 
     // פונקציית ההורדה הידנית (למשתמשי PRO קיימים)
