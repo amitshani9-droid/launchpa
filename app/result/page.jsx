@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Heebo } from "next/font/google";
 import RocketPreview from "@/components/RocketPreview";
 import { useUser } from "@/context/UserContext";
-import { auth, loginWithGoogle, handleUserSignIn, db } from "@/lib/firebase";
+import { auth, loginWithGoogle, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, serverTimestamp, doc, getDoc, onSnapshot } from "firebase/firestore";
 import ReactConfetti from 'react-confetti';
@@ -60,8 +60,8 @@ function ResultContent() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
-                const userData = await handleUserSignIn(currentUser);
-                setUser({ ...currentUser, ...userData });
+                // Using basic auth object for now to bypass build sync issues
+                setUser(currentUser);
             } else {
                 setUser(null);
             }
