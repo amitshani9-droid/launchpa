@@ -30,7 +30,7 @@ export default function Dashboard() {
                 const unsubSnap = onSnapshot(doc(db, "users", currentUser.uid), (doc) => {
                     if (doc.exists() && doc.data().isPro) {
                         setIsPro(true);
-                        localStorage.setItem("isProUser", "true");
+                        localStorage.setItem("isPro", "true");
                     }
                 });
                 return () => unsubSnap();
@@ -42,8 +42,7 @@ export default function Dashboard() {
     useEffect(() => {
         if (typeof window !== "undefined") {
             const savedName = localStorage.getItem("userName") || "אורח";
-            const proStatus = localStorage.getItem("isProUser") === "true" ||
-                VALID_PRO_CODES.includes(localStorage.getItem("proCoupon"));
+            const proStatus = localStorage.getItem("isPro") === "true";
             const savedSites = JSON.parse(localStorage.getItem("my_ai_sites") || "[]");
 
             setTimeout(() => {
@@ -52,7 +51,7 @@ export default function Dashboard() {
                 setSites(savedSites);
             }, 0);
         }
-    }, [isPro]); // Added isPro to satisfy lint and logic
+    }, [isPro]);
 
     const deleteSite = (id) => {
         if (confirm("האם אתה בטוח שברצונך למחוק את האתר?")) {

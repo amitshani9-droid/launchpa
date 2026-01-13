@@ -12,7 +12,7 @@ export const UserProvider = ({ children }) => {
 
     useEffect(() => {
         const savedName = localStorage.getItem("userName") || "";
-        const savedPro = localStorage.getItem("isProUser") === "true";
+        const savedPro = localStorage.getItem("isPro") === "true";
         setTimeout(() => {
             setUser({ name: savedName, isPro: savedPro, loading: false });
         }, 0);
@@ -24,7 +24,7 @@ export const UserProvider = ({ children }) => {
     };
 
     const setProStatus = (status) => {
-        localStorage.setItem("isProUser", status ? "true" : "false");
+        localStorage.setItem("isPro", status ? "true" : "false");
         setUser(prev => ({ ...prev, isPro: status }));
     };
 
