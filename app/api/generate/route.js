@@ -50,7 +50,15 @@ export async function POST(req) {
     const aiInstance = getGenAI();
     const model = aiInstance.getGenerativeModel({
       model: "gemini-1.5-flash",
-      systemInstruction: "You are an Expert Web Designer, Conversion Copywriter, and Landing Page Specialist. Your goal is to generate structured marketing data for high-quality landing pages. You must think in terms of conversion optimization, marketing psychology, and modern structure."
+      systemInstruction: `You are an elite high-ticket web designer and conversion copywriter.
+      Your goal is to design a "$5000 Landing Page" in structured JSON format.
+      
+      PRINCIPLES:
+      1. LUXURY & TRUST: Use high-end, benefit-driven copy.
+      2. CONVERSION PSYCHOLOGY: address pain points, offer solutions, show social proof.
+      3. VISUAL HIERARCHY: Structure content for scanning (bullets, short headers).
+      4. ISRAELI MARKET: Use natural, persuasive Hebrew (slang allowed where appropriate, but mostly professional).
+      `,
     });
 
     const fullPrompt = `
@@ -58,32 +66,46 @@ export async function POST(req) {
       
       STRICT OUTPUT CONTRACT:
       - Return VALID JSON ONLY.
-      - No markdown, no explanations, no text before or after the JSON.
-      - Default language: Hebrew (RTL).
+      - No markdown codes (\`\`\`json).
+      - Language: Hebrew (RTL).
       
       REQUIRED JSON STRUCTURE:
       {
-        "title": "Short brand-style name (3-6 words, no emojis)",
+        "title": "Brand Name (2-3 words)",
         "hero": {
-          "title": "Strong, benefit-driven headline (min 8 words)",
-          "description": "1-2 short marketing sentences focused on outcomes",
-          "cta": "Action-oriented button text (Hebrew)"
+          "title": "Main Headline (Power promise, 6-10 words)",
+          "subtitle": "Subheadline clarifying the offer (15-20 words)",
+          "cta": "Action Button Text",
+          "trust_text": "e.g. 'Join 500+ happy customers'"
         },
         "features": [
-          { "title": "Benefit title", "desc": "Concise benefit description" }
+          { "title": "Benefit 1", "desc": "Short explanation", "icon": "emoji like 🚀" },
+          { "title": "Benefit 2", "desc": "Short explanation", "icon": "emoji like 💎" },
+          { "title": "Benefit 3", "desc": "Short explanation", "icon": "emoji like 🛡️" }
+        ],
+        "steps": [
+          { "title": "Step 1", "desc": "What happens first" },
+          { "title": "Step 2", "desc": "What happens next" },
+          { "title": "Step 3", "desc": "The result" }
+        ],
+        "testimonials": [
+          { "name": "Israeli Name", "role": "Customer Role", "text": "Short raving review (Hebrew)" },
+          { "name": "Israeli Name", "role": "Customer Role", "text": "Short raving review (Hebrew)" }
+        ],
+        "faq": [
+          { "q": "Common objection?", "a": "Soothing answer" },
+          { "q": "Another objection?", "a": "Confident answer" }
         ],
         "style": {
-          "primaryColor": "HEX color (e.g. #6366F1)",
-          "backgroundColor": "HEX color"
+          "primaryColor": "A premium gradient colors (start hex)",
+          "secondaryColor": "A complementary hex",
+          "backgroundColor": "#ffffff or #0f172a (dark)"
         },
-        "cta_button": "Final call-to-action (Hebrew)"
+        "cta_button": "Final Urgency Button"
       }
 
-      RULES:
-      - features must have at least 3 items.
-      - style colors must be valid HEX and contrast well.
-      - Tone: ${theme === 'dark' ? 'Professional and Sleek' : 'Friendly and Trustworthy'}.
-      - Business Name: ${businessName || "Invent a catchy Hebrew brand name if not provided"}.
+      TONE: ${theme === 'dark' ? 'Exclusive, High-Tech, Mysterious' : 'Clean, Professional, Trustworthy'}.
+      BUSINESS NAME: ${businessName || "Create a premium Hebrew brand name"}.
     `;
 
     console.log("⏳ פונה ל-Gemini AI בתצורת JSON... נא להמתין.");
