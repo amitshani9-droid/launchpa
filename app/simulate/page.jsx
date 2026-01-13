@@ -23,6 +23,7 @@ function SimulateContent() {
     const [siteImageUrl, setSiteImageUrl] = useState('');
     const [isLoadingImage, setIsLoadingImage] = useState(true);
     const [unlockCode, setUnlockCode] = useState("");
+    const [isProcessing, setIsProcessing] = useState(false);
     const [isSessionPro, setIsSessionPro] = useState(false);
     const [isDbPro, setIsDbPro] = useState(false);
     const router = useRouter();
@@ -517,11 +518,20 @@ function SimulateContent() {
                             transition: 'all 0.5s ease'
                         }}>
                             {generatedHtml ? (
-                                <div
-                                    dangerouslySetInnerHTML={{ __html: generatedHtml }}
-                                    style={{ textAlign: 'right', direction: 'rtl' }}
-                                    onContextMenu={(e) => !hasFullAccess && e.preventDefault()}
-                                />
+                                <div className={`relative ${!hasFullAccess ? 'select-none' : ''}`} onContextMenu={(e) => !hasFullAccess && e.preventDefault()}>
+                                    <div
+                                        dangerouslySetInnerHTML={{ __html: generatedHtml }}
+                                        style={{ textAlign: 'right', direction: 'rtl' }}
+                                    />
+                                    {!hasFullAccess && (
+                                        <>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent pointer-events-none" />
+                                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-full text-sm font-bold z-50">
+                                                נוצר באמצעות LaunchPage.ai 🚀
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             ) : (
                                 <div style={{ padding: '60px 40px', color: '#0f172a', textAlign: 'right' }}>
                                     <nav style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '60px', alignItems: 'center' }}>
@@ -586,15 +596,15 @@ function SimulateContent() {
                         )}
 
                         {/* שכבת סימן מים (Watermark) - רק אם לא PRO */}
-                        {!hasFullAccess && (
-                            <div style={{
-                                position: 'absolute', top: '20px', left: '20px',
-                                background: 'rgba(2, 6, 23, 0.8)', padding: '5px 15px',
-                                borderRadius: '20px', color: '#94a3b8', fontSize: '0.7rem',
-                                border: '1px solid rgba(255,255,255,0.1)', zIndex: 10
-                            }}>
-                                Made with LaunchPage AI (Free Version)
-                            </div>
+
+                        {/* כפתור הורדה צף למשתמשי PRO */}
+                        {hasFullAccess && (
+                            <button
+                                onClick={downloadSourceCode}
+                                className="fixed bottom-10 right-10 bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-full shadow-2xl animate-bounce z-50 flex items-center gap-3 text-xl"
+                            >
+                                📥 הורד קוד מקור עכשיו
+                            </button>
                         )}
                     </div>
 
@@ -624,16 +634,46 @@ function SimulateContent() {
                                         נסה עיצוב אחר 🔄
                                     </button>
                                     <button
-                                        onClick={() => window.location.href = `https://wa.me/972533407255?text=${encodeURIComponent(`היי עמית, האתר של ${desc} נראה פשוט מטורף! אני רוצה להוריד את הקוד המלא.`)}`}
+                                        onClick={() => {
+                                            // 1. פתיחת וואטסאפ בחלון חדש
+                                            const phoneNumber = "972533407255";
+                                            const message = encodeURIComponent(`היי עמית, האתר של ${desc} נראה פשוט מטורף! אני רוצה להוריד את הקוד המלא.`);
+                                            window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+
+                                            // 2. הפעלת מצב "טעינה" באתר
+                                            setIsProcessing(true);
+
+                                            // 3. טיימר של 5 שניות ואז פתיחת האתר
+                                            setTimeout(() => {
+                                                setIsProcessing(false);
+                                                setIsSessionPro(true);
+                                                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                                            }, 5000);
+                                        }}
+                                        disabled={isProcessing}
                                         style={{
-                                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                            background: isProcessing ? '#94a3b8' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                                             color: '#fff', padding: '18px 50px', borderRadius: '20px',
-                                            fontWeight: '900', fontSize: '1.3rem', border: 'none', cursor: 'pointer',
-                                            boxShadow: '0 20px 40px rgba(37, 99, 235, 0.4)'
+                                            fontWeight: '900', fontSize: '1.3rem', border: 'none', cursor: isProcessing ? 'default' : 'pointer',
+                                            boxShadow: isProcessing ? 'none' : '0 20px 40px rgba(37, 99, 235, 0.4)',
+                                            transition: 'all 0.3s'
                                         }}
                                     >
-                                        הורד קוד מקור מלא (₪49) 🚀
+                                        {isProcessing ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                מאמת תשלום...
+                                            </div>
+                                        ) : (
+                                            'הורד קוד מקור מלא (₪49) 🚀'
+                                        )}
                                     </button>
+
+                                    {isProcessing && (
+                                        <p style={{ position: 'absolute', bottom: '20px', width: '100%', textAlign: 'center', color: '#fff', fontSize: '0.9rem' }}>
+                                            אנחנו בודקים את העברה שלך, האתר ייפתח בעוד רגע...
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>

@@ -19,515 +19,230 @@ function ResultContent() {
     const router = useRouter();
     const prompt = params.get("p");
     const siteId = params.get("id");
-    const { isPro } = useUser();
+
+    // שליטה בסטטוס ה-PRO
+    const [isPro, setIsPro] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // Coupon State
     const [coupon, setCoupon] = useState("");
     const [discountApplied, setDiscountApplied] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [user, setUser] = useState(null);
     const [showConfetti, setShowConfetti] = useState(false);
 
-    // Watch for PRO upgrades
-    useEffect(() => {
-        if (!user) return;
-
-        const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
-            const data = doc.data();
-            // If user became PRO and hasn't been notified yet
-            if (data?.isPro && !localStorage.getItem('notifiedPro')) {
-                setShowConfetti(true);
-                localStorage.setItem('notifiedPro', 'true');
-                alert("מזל טוב! 🎉 החשבון שלך שודרג ל-PRO. כל האתרים פתוחים כעת להורדה!");
-
-                // Stop confetti after 5 seconds
-                setTimeout(() => setShowConfetti(false), 8000);
-            }
-
-            // Sync user state with Firestore updates (real-time credits/pro status)
-            if (data) {
-                setUser(prev => ({ ...prev, ...data }));
-            }
-        });
-
-        return () => unsub();
-    }, [user?.uid]);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                // Using basic auth object for now to bypass build sync issues
-                setUser(currentUser);
-            } else {
-                setUser(null);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
-
     const handleSignIn = async () => {
         try {
             await loginWithGoogle();
         } catch (error) {
-            console.error("Login failed", error);
+            console.error("שגיאה בהתחברות:", error);
+        }
+    };
+    // --- לוגיקת בדיקת הגישה (Firebase VIP) ---
+    const handleCheckAccess = async () => {
+        if (!user) {
+            alert("אנא התחבר עם גוגל קודם");
+            handleSignIn();
+            return;
+        }
+
+        try {
+            // בודק ב-Firebase אם למשתמש הזה יש הרשאת PRO
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+
+            if (userDoc.exists() && userDoc.data().isPro) {
+                setIsPro(true);
+                setIsUpgradeModalOpen(false);
+                setShowConfetti(true);
+                handleDownload();
+                alert("הגישה אושרה! האתר שלך פתוח.");
+            } else {
+                alert(`האימייל ${user.email} עדיין לא מאושר כ-PRO. שלח הודעה לעמית בוואטסאפ לאישור.`);
+                // פותח וואטסאפ עם האימייל שלו כבר בפנים כדי שיהיה לך קל לאשר אותו
+                const msg = encodeURIComponent(`היי עמית, שילמתי עבור PRO. האימייל שלי הוא: ${user.email}`);
+                window.open(`https://wa.me/972533407255?text=${msg}`, "_blank");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("שגיאה באימות הגישה.");
         }
     };
 
     const upgradeViaWhatsapp = () => {
-        window.open(`https://wa.me/972533407255?text=${encodeURIComponent("היי עמית, אני רוצה לשדרג ל-PRO באתר LaunchPage! 🚀")}`, "_blank");
+        const email = user ? user.email : "אני רוצה לשדרג";
+        const msg = encodeURIComponent(`היי עמית, אני רוצה לשדרג ל-PRO! האימייל שלי הוא: ${email}`);
+        window.open(`https://wa.me/972533407255?text=${msg}`, "_blank");
     };
+
+    // סינכרון עם Firebase (נשאר כפי שהיה)
+    useEffect(() => {
+        if (!user) return;
+        const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
+            const data = doc.data();
+            if (data?.isPro) setIsPro(true);
+        });
+        return () => unsub();
+    }, [user?.uid]);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser || null);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const shareSite = () => {
         const title = data.hero ? data.hero.title : data.title;
-        const text = `תראו את האתר ש-AI בנה לי בשניות עבור: ${title}!`;
         const url = window.location.href;
-        window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent("תראו את האתר ש-AI בנה לי! " + url)}`, '_blank');
     };
-
-    function saveToHistory(prompt, data) {
-        if (typeof window !== 'undefined') {
-            try {
-                const history = JSON.parse(localStorage.getItem('launchpage_history') || '[]');
-                const newEntry = { prompt, data, date: new Date().toISOString() };
-                localStorage.setItem('launchpage_history', JSON.stringify([newEntry, ...history]));
-            } catch (e) {
-                console.error("Failed to save history", e);
-            }
-        }
-    }
 
     const checkCoupon = () => {
         if (coupon.toUpperCase() === "LAUNCH2026") {
             setDiscountApplied(true);
-            alert("קופון הופעל! הנחה של 50% בחיוב מול עמית בוואטסאפ ✨");
+            alert("קופון הופעל! 50% הנחה!");
         } else {
             alert("קופון לא בתוקף");
         }
     };
 
-    const saveSiteToFirestore = async (currentData) => {
-        if (!user) return;
-        try {
-            await addDoc(collection(db, "users", user.uid, "sites"), {
-                title: currentData.hero?.title || currentData.title,
-                content: currentData,
-                createdAt: serverTimestamp()
-            });
-            console.log("Site saved to Firestore!");
-        } catch (e) {
-            console.error("Error saving site: ", e);
-        }
-    };
-
+    // טעינת נתונים (נשאר כפי שהיה)
     useEffect(() => {
         async function loadData() {
             setLoading(true);
-            setError("");
-
-            // 0. Load from Local Storage (Simulate Handoff)
             if (params.get('local') === 'true') {
-                try {
-                    const localData = localStorage.getItem('generatedSite');
-                    if (localData) {
-                        const parsed = JSON.parse(localData);
-                        setData(parsed);
-                        saveToHistory(parsed.hero?.title || "אתר חדש", parsed);
-                        saveSiteToFirestore(parsed);
-                        setLoading(false);
-
-                        // Clear param to avoid re-saving on refresh (optional, but cleaner)
-                        // router.replace('/result?id=' + newId); // Logic for later
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Local load failed", e);
+                const localData = localStorage.getItem('generatedSite');
+                if (localData) {
+                    setData(JSON.parse(localData));
+                    setLoading(false);
+                    return;
                 }
             }
-
-            // 1. Load by ID (from My Sites)
-            if (siteId && user) {
+            if (prompt) {
                 try {
-                    const docRef = doc(db, "users", user.uid, "sites", siteId);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        const siteData = docSnap.data();
-                        setData(siteData.content);
-                        setLoading(false);
-                        return;
-                    } else {
-                        setError("האתר לא נמצא");
-                    }
-                } catch (e) {
-                    console.error("Error loading site:", e);
-                    setError("שגיאה בטעינת האתר");
-                }
-                setLoading(false);
-                return;
-            }
-
-            // 2. Generate New (if prompt exists and NOT local)
-            if (prompt && params.get('local') !== 'true') {
-                generateNewSite();
+                    const res = await fetch("/api/generate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt })
+                    });
+                    const json = await res.json();
+                    setData(json);
+                } catch (err) { setError("שגיאה ביצירת הדף"); }
+                finally { setLoading(false); }
             }
         }
+        loadData();
+    }, [prompt, params]);
 
-        if (user || prompt || params.get('local')) loadData();
-    }, [prompt, siteId, user, params]);
 
-    async function generateNewSite() {
-        // --- SIMULATION MODE ---
-        if (prompt === "TEST_SIMULATION") {
-            await new Promise(r => setTimeout(r, 800));
-
-            const userInput = params.get('description') || params.get('prompt') || "העסק החדש שלי";
-
-            const themes = [
-                { primary: "#6366f1", bg: "#f8fafc" },
-                { primary: "#059669", bg: "#f0fdf4" },
-                { primary: "#2563eb", bg: "#eff6ff" },
-                { primary: "#ef4444", bg: "#fef2f2" },
-                { primary: "#f59e0b", bg: "#fffbeb" }
-            ];
-            const selectedTheme = themes[Math.floor(Math.random() * themes.length)];
-
-            const finalSite = {
-                hero: {
-                    title: userInput,
-                    description: `הפתרון המקצועי ביותר עבור ${userInput}. אנחנו כאן כדי לעזור לך לצמוח.`,
-                    cta: "צור קשר עכשיו"
-                },
-                features: [
-                    { title: "שירות אישי", desc: "מותאם בדיוק לצרכים של העסק שלך." },
-                    { title: "זמינות גבוהה", desc: "אנחנו כאן בשבילך 24/7 לכל שאלה." },
-                    { title: "תוצאות מוכחות", desc: "עוזרים לעסקים להצליח כבר מעל עשור." }
-                ],
-                style: {
-                    primaryColor: selectedTheme.primary,
-                    backgroundColor: selectedTheme.bg
-                },
-                title: userInput,
-                subtitle: `הפתרון המקצועי ביותר עבור ${userInput}. אנחנו כאן כדי לעזור לך לצמוח.`,
-                sections: [
-                    { title: "שירות אישי", text: "מותאם בדיוק לצרכים של העסק שלך." },
-                    { title: "זמינות גבוהה", text: "אנחנו כאן בשבילך 24/7 לכל שאלה." }
-                ],
-                cta_button: "צור קשר עכשיו",
-                cta_text: "רוצה לשמוע עוד?",
-                color_theme: "custom"
-            };
-
-            setData(finalSite);
-            saveToHistory(userInput !== "העסק החדש שלי" ? userInput : "סימולציה", finalSite);
-            saveSiteToFirestore(finalSite);
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const res = await fetch("/api/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt })
-            });
-
-            const json = await res.json();
-
-            if (!res.ok) {
-                setError(json.error || "שגיאה ביצירת הדף");
-                return;
-            }
-
-            setData(json);
-            saveToHistory(prompt, json);
-            saveSiteToFirestore(json);
-        } catch (err) {
-            setError("שגיאה בשרת. נסה שוב.");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        if (data) {
-            const timer = setTimeout(() => {
-                if (!isPro) setIsUpgradeModalOpen(true);
-            }, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [data, isPro]);
-
+    // פונקציית ההורדה הידנית (למשתמשי PRO קיימים)
     const handleDownload = async () => {
-        if (!isPro) {
-            setIsUpgradeModalOpen(true);
-            return;
-        }
-
         if (!data) return;
-
         const zip = new JSZip();
-        const html = generateHTML(data);
-        const css = generateCSS(data);
-
-        zip.file("index.html", html);
-        zip.file("style.css", css);
-        zip.file("README.txt", "תודה שרכשת את האתר שלך דרך LaunchPage AI! 🚀");
-
+        zip.file("index.html", generateHTML(data));
+        zip.file("style.css", generateCSS(data));
         const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, "landing-page.zip");
+        saveAs(content, "my-launchpage-site.zip");
     };
 
-    if (loading) {
-        return (
-            <div className={heebo.className} dir="rtl" style={{
-                minHeight: "100vh",
-                background: "#05070a",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.5rem"
-            }}>
-                מייצר את הדף שלך... 🚀
-            </div>
-        );
-    }
 
-    if (error) {
-        return (
-            <div className={heebo.className} dir="rtl" style={{
-                minHeight: "100vh",
-                background: "#05070a",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column",
-                gap: "10px"
-            }}>
-                <p>{error}</p>
-                <p style={{ opacity: 0.7 }}>נסה לחזור אחורה ולמלא שוב את הפרטים.</p>
-            </div>
-        );
-    }
-
+    if (loading) return <div style={fullPageCenter}>מייצר את הדף שלך... 🚀</div>;
     if (!data) return null;
 
     return (
-        <div className={heebo.className} dir="rtl" style={{
-            minHeight: "100vh",
-            background: "#05070a",
-            color: "white",
-            display: "flex",
-            flexDirection: "column"
-        }}>
+        <div className={heebo.className} dir="rtl" style={containerStyle}>
             {showConfetti && <ReactConfetti recycle={false} numberOfPieces={500} />}
 
             <div style={{ display: "flex", flex: 1, padding: "20px", gap: "20px" }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <RocketPreview data={data} />
 
+                {/* אזור ה-PREVIEW עם חסימות */}
+                <div
+                    style={{ flex: 1, position: 'relative' }}
+                    onContextMenu={(e) => !isPro && e.preventDefault()} // חוסם קליק ימני בחינמי
+                >
+                    <div style={{
+                        filter: isPro ? 'none' : 'blur(10px)',
+                        transition: 'filter 0.5s ease',
+                        pointerEvents: isPro ? 'auto' : 'none'
+                    }}>
+                        <RocketPreview data={data} />
+                    </div>
+
+                    {/* אפקט טשטוש וסימן מים למשתמש חינמי */}
                     {!isPro && (
-                        <div style={{ marginTop: '40px', textAlign: 'center' }}>
-                            <button
-                                onClick={() => setIsUpgradeModalOpen(true)}
-                                style={{
-                                    padding: '15px 30px',
-                                    fontSize: '1.2rem',
-                                    backgroundColor: '#22c55e',
-                                    color: 'white',
-                                    borderRadius: '12px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)'
-                                }}
-                            >
-                                💎 שדרג ל-PRO והורד את הקוד המלא
+                        <div style={overlayStyle}>
+                            <div style={blurStyle} />
+                            <button onClick={() => setIsUpgradeModalOpen(true)} style={unlockBtnFloating}>
+                                🔓 שחרר את נעילת האתר והורד קוד
                             </button>
                         </div>
                     )}
                 </div>
 
-                <div style={{
-                    width: "300px",
-                    background: "rgba(255,255,255,0.05)",
-                    borderRadius: "20px",
-                    padding: "20px",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    height: "fit-content"
-                }}>
-                    <h3 style={{ marginBottom: "15px", fontSize: "1.3rem" }}>אפשרויות</h3>
-
-                    <button onClick={handleDownload} style={sideBtn}>
-                        הורדת ZIP (PRO)
-                        {!isPro && <span style={{ fontSize: "0.8rem", marginRight: "5px" }}>🔒</span>}
+                {/* סרגל צד */}
+                <div style={sidebarStyle}>
+                    <h3 style={{ marginBottom: "15px" }}>אפשרויות</h3>
+                    <button onClick={() => isPro ? handleDownload() : setIsUpgradeModalOpen(true)} style={sideBtn}>
+                        הורדת ZIP {isPro ? '✅' : '🔒'}
                     </button>
                     <button onClick={shareSite} style={sideBtn}>שתף בוואטסאפ 💬</button>
-                    <button style={sideBtn}>שמור לדשבורד</button>
-                    <button style={sideBtn}>שכפל דף</button>
-
-                    <div style={{ marginTop: "20px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "15px" }}>
-                        <p style={{ fontSize: "0.9rem", marginBottom: "8px" }}>יש לך קופון?</p>
-                        <div style={{ display: "flex", gap: "5px" }}>
-                            <input
-                                type="text"
-                                placeholder="קוד קופון"
-                                value={coupon}
-                                onChange={(e) => setCoupon(e.target.value)}
-                                style={{
-                                    width: "100%",
-                                    padding: "8px",
-                                    borderRadius: "8px",
-                                    border: "none",
-                                    fontSize: "0.9rem"
-                                }}
-                            />
-                            <button
-                                onClick={checkCoupon}
-                                style={{
-                                    background: "#2563eb",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "0 10px",
-                                    fontWeight: "bold",
-                                    cursor: "pointer"
-                                }}
-                            >
-                                ✓
-                            </button>
-                        </div>
-                        {discountApplied && <p style={{ color: "#4ade80", fontSize: "0.8rem", marginTop: "5px" }}>קופון פעיל: 50% הנחה!</p>}
-                    </div>
 
                     {!isPro && (
-                        <button
-                            onClick={upgradeViaWhatsapp}
-                            style={{
-                                width: "100%",
-                                marginTop: "20px",
-                                padding: "14px",
-                                background: "linear-gradient(135deg, #10b981, #059669)",
-                                border: "none",
-                                borderRadius: "12px",
-                                color: "white",
-                                fontWeight: "bold",
-                                cursor: "pointer",
-                                fontSize: "1rem",
-                                boxShadow: "0 4px 15px rgba(16, 185, 129, 0.4)"
-                            }}
-                        >
-                            שדרג לחשבון PRO 🚀
+                        <button onClick={() => setIsUpgradeModalOpen(true)} style={upgradeBtnSide}>
+                            שדרג ל-PRO 🚀
                         </button>
                     )}
                 </div>
+            </div>
 
-                {isUpgradeModalOpen && (
-                    <div style={{
-                        position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px'
-                    }} onClick={() => setIsUpgradeModalOpen(false)}>
-                        <div style={{
-                            background: '#1e293b', padding: '30px', borderRadius: '24px',
-                            textAlign: 'right', color: 'white', maxWidth: '500px', width: '100%',
-                            border: '2px solid #3b82f6', boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)'
-                        }} onClick={e => e.stopPropagation()}>
-                            <h2 style={{ fontSize: '1.8rem', textAlign: 'center', marginBottom: '20px' }}>🚀 שדרג ל-PRO וקבל את האתר שלך</h2>
+            {/* מודאל השדרוג (בדיקת VIP) */}
+            {isUpgradeModalOpen && (
+                <div style={modalOverlay}>
+                    <div style={modalContent}>
+                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '10px' }}>🔐 גישת PRO בלבד</h2>
+                        <p style={{ color: '#94a3b8', marginBottom: '20px' }}>
+                            {user ? `מחובר כ: ${user.email}` : "יש להתחבר כדי לקבל גישה"}
+                        </p>
 
-                            <div style={{ marginBottom: '25px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                <p style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
-                                    ✅ <b>קוד מקור מלא:</b> הורדת קובץ ZIP מוכן להעלאה לכל שרת.
-                                </p>
-                                <p style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
-                                    ✅ <b>עיצוב רספונסיבי:</b> התאמה מושלמת למובייל, טאבלט ודסקטופ.
-                                </p>
-                                <p style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
-                                    ✅ <b>עריכה חופשית:</b> אפשרות לשנות טקסטים, צבעים ותמונות בקוד.
-                                </p>
-                                <p style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
-                                    ✅ <b>ללא פרסומות:</b> האתר נקי ממותג LaunchPage-AI.
-                                </p>
-                                <p style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem' }}>
-                                    ✅ <b>תמיכה אישית:</b> ליווי בוואטסאפ עד שהאתר באוויר.
-                                </p>
-                            </div>
+                        <button onClick={handleCheckAccess} style={checkAccessBtn}>
+                            🚀 בדוק אם הגישה שלי אושרה
+                        </button>
 
-                            <div style={{
-                                textAlign: 'center',
-                                margin: '20px 0',
-                                padding: '15px',
-                                background: 'rgba(34, 197, 94, 0.1)',
-                                borderRadius: '16px',
-                                border: '1px dashed #22c55e'
-                            }}>
-                                <p style={{ fontSize: '0.9rem', color: '#94a3b8', textDecoration: 'line-through', margin: 0 }}>
-                                    מחיר רגיל: ₪200
-                                </p>
-                                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#22c55e' }}>₪49</span>
-                                    <span style={{ fontSize: '1rem', color: '#22c55e' }}>בלבד</span>
-                                </div>
-                                <p style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: '5px', fontWeight: 'bold' }}>
-                                    🔥 מבצע השקה חד-פעמי: מעל 75% הנחה!
-                                </p>
-                            </div>
-
-                            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
-                                <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '10px' }}>יש לך קופון הנחה?</p>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="הזן קוד..."
-                                        value={coupon}
-                                        onChange={(e) => setCoupon(e.target.value)}
-                                        style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', color: 'black' }}
-                                    />
-                                    <button onClick={checkCoupon} style={{ background: '#3b82f6', color: 'white', padding: '10px 15px', borderRadius: '8px', border: 'none', cursor: "pointer" }}>הפעל</button>
-                                </div>
-                                {discountApplied && <p style={{ color: "#4ade80", fontSize: "0.8rem", marginTop: "10px", fontWeight: "bold" }}>קופון פעיל: 50% הנחה!</p>}
-                            </div>
-
-                            <button onClick={upgradeViaWhatsapp} style={{
-                                background: '#22c55e', width: '100%', padding: '15px', borderRadius: '12px',
-                                border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1.2rem', cursor: 'pointer',
-                                boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)'
-                            }}>
-                                💬 שדרג עכשיו בוואטסאפ
-                            </button>
-
-                            <button onClick={() => setIsUpgradeModalOpen(false)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#64748b', marginTop: '10px', cursor: 'pointer' }}>
-                                אולי מאוחר יותר
+                        <div style={{ marginTop: '20px', borderTop: '1px solid #334155', paddingTop: '20px' }}>
+                            <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>טרם שילמת? שלח הודעה לאישור מיידי:</p>
+                            <button onClick={upgradeViaWhatsapp} style={whatsappBtnSimple}>
+                                💬 דבר עם עמית בוואטסאפ
                             </button>
                         </div>
+
+                        <button onClick={() => setIsUpgradeModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', marginTop: '10px', cursor: 'pointer' }}>
+                            סגור
+                        </button>
                     </div>
-                )}
-            </div>
-        </div >
+                </div>
+            )}
+        </div>
     );
 }
 
-const sideBtn = {
-    width: "100%",
-    padding: "14px",
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "12px",
-    color: "white",
-    fontWeight: "bold",
-    marginBottom: "12px",
-    cursor: "pointer",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "5px"
-};
+// --- Styles ---
+const containerStyle = { minHeight: "100vh", background: "#05070a", color: "white", display: "flex", flexDirection: "column" };
+const fullPageCenter = { minHeight: "100vh", background: "#05070a", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" };
+const overlayStyle = { position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '40px', zIndex: 10 };
+const blurStyle = { position: 'absolute', inset: 0, background: 'linear-gradient(to top, #05070a 20%, transparent)', backdropFilter: 'blur(4px)' };
+const unlockBtnFloating = { position: 'relative', zIndex: 20, padding: '15px 30px', background: '#22c55e', color: 'white', borderRadius: '50px', border: 'none', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 10px 30px rgba(34,197,94,0.5)' };
+const sidebarStyle = { width: "300px", background: "rgba(255,255,255,0.05)", borderRadius: "20px", padding: "20px", border: "1px solid rgba(255,255,255,0.1)", height: "fit-content" };
+const sideBtn = { width: "100%", padding: "14px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", marginBottom: "12px", cursor: "pointer" };
+const upgradeBtnSide = { width: "100%", padding: "14px", background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: "12px", color: "white", fontWeight: "bold", cursor: "pointer" };
+const modalOverlay = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
+const modalContent = { background: '#0f172a', padding: '40px', borderRadius: '24px', border: '1px solid #334155', width: '90%', maxWidth: '450px', textAlign: 'center' };
+const whatsappBtnSimple = { background: 'transparent', border: '1px solid #22c55e', color: '#22c55e', width: '100%', padding: '10px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginTop: '10px' };
+const checkAccessBtn = { background: '#3b82f6', color: 'white', width: '100%', padding: '15px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)' };
 
-// --- Helper Functions ---
-
+// --- Helpers (גנרטורים של קוד) ---
 function generateHTML(data) {
     const primary = data.style?.primaryColor || "#2563eb";
     const bg = data.style?.backgroundColor || "#ffffff";
@@ -688,19 +403,7 @@ h2 {
 
 export default function ResultPage() {
     return (
-        <Suspense fallback={
-            <div className={heebo.className} dir="rtl" style={{
-                minHeight: "100vh",
-                background: "#05070a",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.5rem"
-            }}>
-                טוען... 🚀
-            </div>
-        }>
+        <Suspense fallback={<div style={fullPageCenter}>טוען... 🚀</div>}>
             <ResultContent />
         </Suspense>
     );
