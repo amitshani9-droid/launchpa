@@ -128,14 +128,11 @@ function ResultContent() {
         );
     }
 
-    if (!pageLoading && !data) {
-        return (
-            <div style={errorScreenStyle}>
-                <h2>אין דף להצגה</h2>
-                <p>נראה שעדיין לא נוצר דף נחיתה.</p>
-                <Link href="/" style={{ color: '#3b82f6' }}>צור דף חדש</Link>
-            </div>
-        );
+    if (!data) {
+        return <div style={{ color: 'white', padding: 50 }}>
+            <h1>שגיאה: אין נתונים להצגה</h1>
+            <p>האם יש שגיאה ב-Console?</p>
+        </div>;
     }
 
     return (
@@ -156,7 +153,7 @@ function ResultContent() {
                 {/* Main Preview Area */}
                 <div style={previewArea} onContextMenu={(e) => !isPro && e.preventDefault()}>
                     <div style={{ filter: isPro ? 'none' : 'blur(0)', transition: 'filter 0.5s ease', height: '100%' }}>
-                        <RocketPreview data={data} />
+                        <RocketPreview data={data} isPro={isPro} />
                     </div>
 
                     {!isPro && (

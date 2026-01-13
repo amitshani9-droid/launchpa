@@ -17,6 +17,9 @@ function SimulateContent() {
 
     const { isPro, setProStatus, openUpgradeModal } = useUser();
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [progress, setProgress] = useState(0);
+    const [siteData, setSiteData] = useState(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -59,7 +62,7 @@ function SimulateContent() {
                 const res = await fetch("/api/generate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ siteId }) // API handles fetching prompt from Firestore
+                    body: JSON.stringify({ prompt: initialData.prompt })
                 });
 
                 const json = await res.json();

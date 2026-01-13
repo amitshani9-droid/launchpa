@@ -1,362 +1,116 @@
-"use client";
+import React from 'react';
+import * as LucideIcons from 'lucide-react';
 
-import { useState } from "react";
+const DynamicIcon = ({ name, color, className }) => {
+    // תיקון: הופך "rocket" ל-"Rocket" כדי ש-Lucide יזהה את האייקון
+    const iconName = name ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() : 'Zap';
+    const IconComponent = LucideIcons[iconName] || LucideIcons.Zap;
+    return <IconComponent color={color} className={className} />;
+};
 
-export default function RocketPreview({ data }) {
-    const [darkMode, setDarkMode] = useState(true);
-    const [viewMode, setViewMode] = useState('desktop'); // desktop | mobile
+const RocketPreview = ({ data, isPro }) => {
+    // הגנה: אם אין דאטה, לא מרנדרים כלום (מונע מסך לבן)
+    if (!data) return <div className="text-center text-white p-10">טוען תצוגה...</div>;
 
-    if (!data) return null;
+    // חילוץ בטוח של משתנים (Fallback לערכי ברירת מחדל)
+    const styles = data.style || {};
+    const hero = data.hero || {};
+    const features = data.features || [];
 
-    // Premium Typography Styles
-    const titleStyle = {
-        fontSize: viewMode === 'mobile' ? "2.5rem" : "3.5rem",
-        fontWeight: "800",
-        letterSpacing: "-0.03em",
-        lineHeight: "1.1",
-        marginBottom: "20px",
-        background: "linear-gradient(135deg, #60a5fa 0%, #c084fc 100%)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        filter: "drop-shadow(0 4px 20px rgba(96, 165, 250, 0.2))"
+    const bgColor = styles.backgroundColor || '#ffffff';
+    const primaryColor = styles.primaryColor || '#2563eb';
+    const textColor = '#1e293b'; // צבע טקסט כהה כברירת מחדל
+
+    // לוגיקת Paywall
+    const handleContextMenu = (e) => {
+        if (!isPro) e.preventDefault();
     };
 
-    const subtitleStyle = {
-        fontSize: viewMode === 'mobile' ? "1.1rem" : "1.25rem",
-        opacity: 0.9,
-        marginBottom: "40px",
-        lineHeight: "1.6",
-        fontWeight: "400",
-        maxWidth: "600px",
-        marginLeft: "auto",
-        marginRight: "auto"
+    const containerStyle = {
+        backgroundColor: bgColor,
+        color: textColor,
+        userSelect: isPro ? 'auto' : 'none',
+        filter: isPro ? 'none' : 'blur(6px)', // טשטוש עדין יותר שנראה טוב
+        transition: 'filter 0.5s ease-in-out',
+        pointerEvents: isPro ? 'auto' : 'none',
     };
-
-    const sectionTitleStyle = {
-        fontSize: "1.8rem",
-        fontWeight: "700",
-        marginBottom: "15px",
-        letterSpacing: "-0.02em",
-        color: darkMode ? "#fff" : "#1e293b"
-    };
-
-    const textStyle = {
-        fontSize: "1.125rem", // 18px
-        lineHeight: "1.75",
-        color: darkMode ? "rgba(255,255,255,0.85)" : "#334155",
-        fontWeight: "400"
-    };
-
-    // If API returned HTML, render it directly
-    if (data.html) {
-        return (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-                {/* Controls Bar */}
-                <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    width: "100%",
-                    maxWidth: "900px",
-                    marginBottom: "20px"
-                }}>
-                    <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.1)", padding: "5px", borderRadius: "10px", width: '100%', justifyContent: 'center' }}>
-                        <button
-                            onClick={() => setViewMode('desktop')}
-                            style={{
-                                background: viewMode === 'desktop' ? "rgba(255,255,255,0.2)" : "transparent",
-                                border: "none",
-                                padding: "8px 20px",
-                                borderRadius: "8px",
-                                cursor: "pointer",
-                                color: "white",
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            🖥️ דסקטופ
-                        </button>
-                        <button
-                            onClick={() => setViewMode('mobile')}
-                            style={{
-                                background: viewMode === 'mobile' ? "rgba(255,255,255,0.2)" : "transparent",
-                                border: "none",
-                                padding: "8px 20px",
-                                borderRadius: "8px",
-                                cursor: "pointer",
-                                color: "white",
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            📱 מובייל
-                        </button>
-                    </div>
-                </div>
-
-                {/* Preview Container */}
-                <div
-                    style={{
-                        background: "#ffffff",
-                        color: "#000000",
-                        borderRadius: "24px",
-                        border: "1px solid rgba(0,0,0,0.1)",
-                        boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-                        width: viewMode === 'mobile' ? '375px' : '100%',
-                        maxWidth: "1000px",
-                        margin: "0 auto",
-                        transition: "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)",
-                        height: "80vh",
-                        overflow: "hidden", // Iframe handles scroll
-                        position: 'relative'
-                    }}
-                >
-                    <iframe
-                        srcDoc={data.html}
-                        title="Site Preview"
-                        style={{
-                            width: "100%",
-                            height: "100%",
-                            border: "none",
-                            borderRadius: "24px",
-                            background: "white"
-                        }}
-                    />
-                </div>
-            </div>
-        );
-    }
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+        <div
+            className="w-full min-h-[600px] shadow-2xl overflow-hidden rounded-xl border border-white/10 relative bg-white"
+            onContextMenu={handleContextMenu}
+        >
+            <div style={containerStyle} className="w-full h-full p-0 font-sans">
 
-            {/* Controls Bar */}
-            <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                width: "100%",
-                maxWidth: "900px",
-                marginBottom: "20px"
-            }}>
-                {/* Theme Toggle */}
-                <button
-                    onClick={() => setDarkMode(!darkMode)}
-                    style={{
-                        padding: "8px 16px",
-                        borderRadius: "10px",
-                        background: darkMode ? "#2563eb" : "#7c3aed",
-                        color: "white",
-                        fontWeight: "bold",
-                        border: "none",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                    }}
-                >
-                    מצב {darkMode ? "בהיר ☀️" : "כהה 🌙"}
-                </button>
-
-                {/* View Mode Toggle */}
-                <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.1)", padding: "5px", borderRadius: "10px" }}>
+                {/* Navigation */}
+                <nav className="p-6 flex justify-between items-center border-b border-black/5">
+                    <div className="font-bold text-2xl" style={{ color: primaryColor }}>{data.title}</div>
+                    <div className="hidden md:flex gap-6 text-sm font-medium opacity-70">
+                        <span>ראשי</span>
+                        <span>תכונות</span>
+                        <span>אודות</span>
+                    </div>
                     <button
-                        onClick={() => setViewMode('desktop')}
-                        style={{
-                            background: viewMode === 'desktop' ? "rgba(255,255,255,0.2)" : "transparent",
-                            border: "none",
-                            padding: "5px 10px",
-                            borderRadius: "6px",
-                            cursor: "pointer",
-                            color: "white"
-                        }}
+                        className="px-5 py-2 rounded-full text-white text-sm font-bold shadow-md"
+                        style={{ backgroundColor: primaryColor }}
                     >
-                        🖥️ דסקטופ
+                        {hero.cta || "התחל עכשיו"}
                     </button>
-                    <button
-                        onClick={() => setViewMode('mobile')}
-                        style={{
-                            background: viewMode === 'mobile' ? "rgba(255,255,255,0.2)" : "transparent",
-                            border: "none",
-                            padding: "5px 10px",
-                            borderRadius: "6px",
-                            cursor: "pointer",
-                            color: "white"
-                        }}
-                    >
-                        📱 מובייל
-                    </button>
-                </div>
-            </div>
+                </nav>
 
-            {/* Preview Container */}
-            <div style={{
-                background: darkMode ? "#0f172a" : "#ffffff",
-                color: darkMode ? "white" : "black",
-                borderRadius: "24px",
-                border: "1px solid rgba(255,255,255,0.1)",
-                boxShadow: darkMode ? "0 0 50px rgba(0,0,0,0.5)" : "0 20px 40px rgba(0,0,0,0.1)",
-                width: viewMode === 'mobile' ? '375px' : '100%',
-                maxWidth: "1000px",
-                margin: "0 auto",
-                transition: "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)",
-                textAlign: "center",
-                overflow: "hidden"
-            }}>
-                {/* 
-                   LOGIC SWITCH: 
-                   Check if we have the new "Premium Data Structure" (has `hero` object) 
-                   or fallback to the old structure for backward compatibility.
-                */}
-                {data.hero ? (
-                    // --- PREMIUM LAYOUT (Simulation Mode) ---
-                    <div style={{ backgroundColor: data.style?.backgroundColor || '#fff', minHeight: '100%', direction: 'rtl', borderRadius: '24px', overflow: 'hidden' }}>
-                        {/* Navigation Bar */}
-                        <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
-                            <div style={{ fontWeight: 'bold', color: data.style?.primaryColor || '#6366f1', fontSize: '1.4rem' }}>LaunchPage</div>
-                            <button style={{ backgroundColor: data.style?.primaryColor || '#6366f1', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: "bold", cursor: "pointer" }}>
-                                {data.hero.cta}
-                            </button>
-                        </nav>
+                {/* Hero Section */}
+                <section className="py-24 px-8 text-center max-w-4xl mx-auto">
+                    <h1 className="text-5xl md:text-6xl font-black mb-6 leading-tight text-gray-900">
+                        {hero.title}
+                    </h1>
+                    <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+                        {hero.description || hero.subtitle} {/* תמיכה בשני הפורמטים */}
+                    </p>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            className="px-10 py-4 rounded-xl text-white font-bold text-lg shadow-xl hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: primaryColor }}
+                        >
+                            {hero.cta || "בוא נתחיל"}
+                        </button>
+                    </div>
+                </section>
 
-                        {/* Hero Section */}
-                        <header style={{ padding: '80px 20px', textAlign: 'center' }}>
-                            <h1 style={{ fontSize: '3.5rem', fontWeight: '900', color: '#1e293b', marginBottom: '20px', lineHeight: 1.1 }}>
-                                {data.hero.title}
-                            </h1>
-                            <p style={{ fontSize: '1.3rem', color: '#475569', maxWidth: '700px', margin: '0 auto 30px' }}>
-                                {data.hero.description}
-                            </p>
-                        </header>
-
-                        {/* Features Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', padding: '0 40px 100px', textAlign: 'right' }}>
-                            {data.features?.map((f, i) => (
-                                <div key={i} style={{ background: '#fff', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-                                    <h3 style={{ color: data.style?.primaryColor || '#6366f1', marginBottom: '10px', fontSize: '1.25rem', fontWeight: 'bold' }}>{f.title}</h3>
-                                    <p style={{ color: '#64748b', lineHeight: 1.6 }}>{f.desc}</p>
+                {/* Features Section */}
+                {features.length > 0 && (
+                    <section className="py-20 px-8 bg-gray-50">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                            {features.map((feature, idx) => (
+                                <div key={idx} className="p-8 rounded-2xl bg-white shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+                                    <div
+                                        className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                                        style={{ backgroundColor: `${primaryColor}15` }} // 15% opacity hex
+                                    >
+                                        <DynamicIcon name={feature.icon} color={primaryColor} className="w-8 h-8" />
+                                    </div>
+                                    <h3 className="text-xl font-bold mb-3 text-gray-800">{feature.title}</h3>
+                                    <p className="text-gray-600 leading-relaxed">{feature.desc || feature.description}</p>
                                 </div>
                             ))}
                         </div>
-
-                        {/* Steps / Process Section */}
-                        {data.steps && (
-                            <div style={{ background: '#f8fafc', padding: '80px 20px', textAlign: 'center' }}>
-                                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '40px', color: '#1e293b' }}>איך זה עובד?</h2>
-                                <div style={{ display: 'flex', flexDirection: viewMode === 'mobile' ? 'column' : 'row', gap: '30px', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto' }}>
-                                    {data.steps.map((step, i) => (
-                                        <div key={i} style={{ flex: 1, position: 'relative' }}>
-                                            <div style={{ width: '50px', height: '50px', background: data.style?.primaryColor || '#6366f1', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold', margin: '0 auto 20px' }}>{i + 1}</div>
-                                            <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '10px', color: '#334155' }}>{step.title}</h4>
-                                            <p style={{ color: '#64748b' }}>{step.desc}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Testimonials Section */}
-                        {data.testimonials && (
-                            <div style={{ padding: '80px 20px', background: 'white' }}>
-                                <h2 style={{ textAlign: 'center', fontSize: '2.5rem', fontWeight: '800', marginBottom: '50px', color: '#1e293b' }}>מה לקוחות אומרים a</h2>
-                                <div style={{ display: 'grid', gridTemplateColumns: viewMode === 'mobile' ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', maxWidth: '1000px', margin: '0 auto' }}>
-                                    {data.testimonials.map((t, i) => (
-                                        <div key={i} style={{ padding: '30px', background: '#f1f5f9', borderRadius: '20px', borderRight: `4px solid ${data.style?.primaryColor || '#6366f1'}` }}>
-                                            <p style={{ fontSize: '1.1rem', color: '#334155', marginBottom: '20px', fontStyle: 'italic' }}>"{t.text}"</p>
-                                            <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{t.name}</div>
-                                            <div style={{ fontSize: '0.9rem', color: '#64748b' }}>{t.role}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* FAQ Section */}
-                        {data.faq && (
-                            <div style={{ padding: '80px 20px', background: '#f8fafc', textAlign: 'right' }}>
-                                <h2 style={{ textAlign: 'center', fontSize: '2.5rem', fontWeight: '800', marginBottom: '50px', color: '#1e293b' }}>שאלות נפוצות</h2>
-                                <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    {data.faq.map((item, i) => (
-                                        <div key={i} style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 5px 15px rgba(0,0,0,0.03)' }}>
-                                            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '10px', color: '#1e293b' }}>{item.q}</h4>
-                                            <p style={{ color: '#475569' }}>{item.a}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Final CTA */}
-                        <div style={{ padding: '100px 20px', textAlign: 'center', background: `linear-gradient(135deg, ${data.style?.primaryColor || '#2563eb'}, ${data.style?.secondaryColor || '#1e40af'})`, color: 'white' }}>
-                            <h2 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '20px' }}>מוכן להתחיל?</h2>
-                            <button style={{ background: 'white', color: data.style?.primaryColor || '#2563eb', padding: '20px 50px', borderRadius: '50px', fontSize: '1.25rem', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-                                {data.cta_button || "התחל עכשיו בחינם"}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    // --- LEGACY LAYOUT (Generated Results) ---
-                    <div style={{ padding: viewMode === 'mobile' ? "40px 20px" : "60px" }}>
-                        {/* HERO SECTION */}
-                        <div style={{ marginBottom: "60px" }}>
-                            <h1 style={titleStyle}>
-                                {data.title}
-                            </h1>
-                            <p style={subtitleStyle}>
-                                {data.subtitle}
-                            </p>
-                            <button style={{
-                                padding: "18px 36px",
-                                background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
-                                border: "none",
-                                borderRadius: "50px",
-                                color: "white",
-                                fontWeight: "700",
-                                fontSize: "1.1rem",
-                                cursor: "pointer",
-                                boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.5)",
-                                transition: "transform 0.2s"
-                            }}>
-                                {data.cta_button || "התחל עכשיו"}
-                            </button>
-                        </div>
-
-                        {/* Content Sections Grid */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: viewMode === 'mobile' ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
-                            gap: "30px",
-                            textAlign: "right"
-                        }}>
-                            {data.sections?.map((section, i) => (
-                                <div key={i} style={{
-                                    padding: "30px",
-                                    background: darkMode ? "rgba(255,255,255,0.03)" : "#f8fafc",
-                                    borderRadius: "20px",
-                                    border: darkMode ? "1px solid rgba(255,255,255,0.05)" : "1px solid #e2e8f0"
-                                }}>
-                                    <h2 style={sectionTitleStyle}>
-                                        {section.title}
-                                    </h2>
-                                    <p style={textStyle}>
-                                        {section.text}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Footer / CTA */}
-                        <div style={{ marginTop: "80px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "40px" }}>
-                            <p style={{ opacity: 0.7, marginBottom: "15px", fontSize: "1.1rem" }}>{data.cta_text}</p>
-                            <button style={{
-                                padding: "14px 28px",
-                                background: darkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0",
-                                color: darkMode ? "white" : "#0f172a",
-                                border: "none",
-                                borderRadius: "12px",
-                                fontWeight: "600",
-                                cursor: "pointer"
-                            }}>
-                                {data.cta_button || "צור קשר"}
-                            </button>
-                        </div>
-                    </div>
+                    </section>
                 )}
+
+                {/* Footer */}
+                <footer className="py-10 border-t border-gray-200 text-center text-gray-500 text-sm">
+                    <p>© {new Date().getFullYear()} {data.title}. כל הזכויות שמורות.</p>
+                    <p className="mt-2 text-xs">נבנה באמצעות LaunchPage AI 🚀</p>
+                </footer>
             </div>
+
+            {/* שכבת הגנה ויזואלית לחינמיים */}
+            {!isPro && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                    {/* הכפתור האמיתי נמצא ב-Page.jsx, כאן זה רק כדי לתפוס מקום */}
+                </div>
+            )}
         </div>
     );
-}
+};
+
+export default RocketPreview;
