@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from 'firebase/auth';
+import { useUser } from '@/context/UserContext';
 
 export default function Navbar() {
-    const [user] = useAuthState(auth);
+    const [userAuth] = useAuthState(auth);
     const router = useRouter();
+    const { isPro, openUpgradeModal, logout } = useUser();
 
     return (
         <nav style={{
@@ -22,7 +24,7 @@ export default function Navbar() {
                 justifyContent: 'space-between', alignItems: 'center', padding: '0 40px', flexDirection: 'row-reverse'
             }}>
 
-                {/* כרטיס המותג האולטימטיבי - לוגו AI חדש */}
+                {/* LOGO */}
                 <Link href="/" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', textDecoration: 'none' }}>
                     <div style={{
                         width: '80px', height: '80px',
@@ -42,7 +44,6 @@ export default function Navbar() {
                         }} width={112} height={112} alt="Logo" />
                     </div>
 
-                    {/* טקסט מותג יוקרתי */}
                     <div style={{ marginRight: '15px', display: 'flex', flexDirection: 'column' }}>
                         <span style={{
                             fontSize: '1.8rem',
@@ -62,7 +63,7 @@ export default function Navbar() {
                     </div>
                 </Link>
 
-                {/* תפריט ניווט ופעולה */}
+                {/* MENU */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
                     <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginLeft: '20px' }}>
                         <Link href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.95rem' }}>בית</Link>
@@ -70,9 +71,9 @@ export default function Navbar() {
                         <Link href="/templates" style={{ color: '#94a3b8', textDecoration: 'none', fontWeight: '700', fontSize: '0.95rem' }}>תבניות</Link>
                     </div>
 
-                    {user ? (
+                    {userAuth ? (
                         <>
-                            <button onClick={() => router.push('/my-sites')} style={{
+                            <button onClick={() => router.push('/dashboard')} style={{
                                 background: 'transparent',
                                 color: '#94a3b8',
                                 fontSize: '0.95rem',
@@ -82,21 +83,23 @@ export default function Navbar() {
                             }}>
                                 📂 האתרים שלי
                             </button>
-                            <button
-                                onClick={() => router.push('/pricing')}
-                                style={{
-                                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                                    color: 'white', padding: '12px 25px', borderRadius: '12px',
-                                    fontWeight: '900', fontSize: '1rem', border: 'none', cursor: 'pointer',
-                                    boxShadow: '0 8px 20px rgba(217, 119, 6, 0.3)'
-                                }}>
-                                שדרג ל-PRO 💎
-                            </button>
+                            {!isPro && (
+                                <button
+                                    onClick={() => openUpgradeModal()}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                        color: 'white', padding: '12px 25px', borderRadius: '12px',
+                                        fontWeight: '900', fontSize: '1rem', border: 'none', cursor: 'pointer',
+                                        boxShadow: '0 8px 20px rgba(217, 119, 6, 0.3)'
+                                    }}>
+                                    שדרג ל-PRO 💎
+                                </button>
+                            )}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '15px' }}>
-                                {user.photoURL && (
+                                {userAuth.photoURL && (
                                     <div style={{ position: 'relative' }}>
                                         <Image
-                                            src={user.photoURL}
+                                            src={userAuth.photoURL}
                                             width={45}
                                             height={45}
                                             style={{ borderRadius: '50%', border: '2px solid #3b82f6' }}
@@ -105,7 +108,7 @@ export default function Navbar() {
                                         <div style={{ position: 'absolute', bottom: 0, right: 0, width: '12px', height: '12px', background: '#10b981', borderRadius: '50%', border: '2px solid #000' }}></div>
                                     </div>
                                 )}
-                                <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>התנתק</button>
+                                <button onClick={() => { signOut(auth); logout(); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>התנתק</button>
                             </div>
                         </>
                     ) : (

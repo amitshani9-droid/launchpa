@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Heebo } from "next/font/google";
 import Link from "next/link";
 import RocketPreview from "@/components/RocketPreview";
 import { useUser } from "@/context/UserContext";
-import { auth, loginWithGoogle, db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, addDoc, serverTimestamp, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import ReactConfetti from 'react-confetti';
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { validateHtml } from '@/lib/landing/validateHtml';
 import { renderHtml } from '@/lib/landing/renderHtml';
 import { downloadStandaloneSite } from '@/lib/landing/downloadSite';
-import { VALID_PRO_CODES, SUPPORT_PHONE } from '@/lib/constants';
 
 const heebo = Heebo({ subsets: ["hebrew"] });
 
@@ -23,25 +21,12 @@ function ResultContent() {
     const prompt = params.get("p");
     const siteId = params.get("id");
 
-    const { isPro, setProStatus } = useUser();
+    const { isPro, setProStatus, openUpgradeModal } = useUser();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [validationErrors, setValidationErrors] = useState([]);
-
-    const [coupon, setCoupon] = useState("");
-    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [user, setUser] = useState(null);
-    const [showConfetti, setShowConfetti] = useState(false);
-
-    // Load initial state from localStorage for robustness
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const savedPro = localStorage.getItem("isPro") === "true";
-            if (savedPro) setProStatus(true);
-        }
-    }, [setProStatus]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -50,47 +35,11 @@ function ResultContent() {
         return () => unsubscribe();
     }, []);
 
-    const upgradeViaWhatsapp = () => {
-        const email = user ? user.email : "לא ידוע";
-        const businessType = data?.businessType || prompt || "עסק כללי";
-        const goal = data?.goal || "הגדלת המרות ויצירת דף נחיתה";
-
-        const message = `היי עמית, אני רוצה לקבל קוד PRO עבור האתר שלי.
-סוג עסק: ${businessType}
-מטרה: ${goal}
-אימייל: ${email}`;
-
-        window.open(`https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(message)}`, "_blank");
-    };
-
-    const checkCoupon = useCallback(async () => {
-        const normalizedCoupon = coupon.trim().toUpperCase();
-        if (VALID_PRO_CODES.includes(normalizedCoupon)) {
-            setProStatus(true);
-            localStorage.setItem("isPro", "true");
-            setShowConfetti(true);
-            setIsUpgradeModalOpen(false);
-            setShowSuccessModal(true);
-
-            if (user) {
-                try {
-                    const userRef = doc(db, "users", user.uid);
-                    await updateDoc(userRef, { isPro: true, activatedCoupon: normalizedCoupon });
-                } catch (e) {
-                    console.error("Error updating Firestore:", e);
-                }
-            }
-        } else {
-            alert("קוד שגוי, נסה שוב.");
-        }
-    }, [coupon, user, setProStatus]);
-
     useEffect(() => {
         if (!user) return;
         const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
             if (doc.data()?.isPro) {
                 setProStatus(true);
-                localStorage.setItem("isPro", "true");
             }
         });
         return () => unsub();
@@ -148,6 +97,13 @@ function ResultContent() {
         }
     };
 
+    const handleUpgradeTrigger = () => {
+        openUpgradeModal({
+            businessType: data?.businessType || prompt || "עסק כללי",
+            goal: data?.goal || "הגדלת המרות"
+        });
+    };
+
     if (loading) return <div style={fullPageCenter}>מייצר את הדף שלך... 🚀</div>;
 
     if (validationErrors.length > 0) {
@@ -158,7 +114,7 @@ function ResultContent() {
                 <p style={{ color: '#94a3b8', maxWidth: '500px', marginBottom: '30px', fontSize: '1.2rem', lineHeight: '1.6' }}>
                     אנחנו מוודאים שכל דף נחיתה שיוצא מהמערכת עומד ברף איכות גבוה. מנסים לייצר את הדף מחדש.
                 </p>
-                <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={displayFlexGap15}>
                     <button onClick={() => window.location.reload()} style={primaryActionBtnStyle}>נסה שוב</button>
                     <button onClick={() => router.push('/')} style={secondaryActionBtnStyle}>חזרה לעריכה</button>
                 </div>
@@ -178,112 +134,97 @@ function ResultContent() {
 
     return (
         <div className={heebo.className} dir="rtl" style={containerStyle}>
-            {showConfetti && <ReactConfetti recycle={false} numberOfPieces={500} />}
+            {/* Freemium Banner */}
+            {!isPro && (
+                <div style={premiumBannerStyle}>
+                    <div style={{ fontSize: '1.2rem' }}>👀</div>
+                    <div>
+                        <div style={{ fontWeight: '900' }}>מצב תצוגה בלבד</div>
+                        <div style={{ opacity: 0.9, fontSize: '0.95rem' }}>זהו דף נחיתה אמיתי שנוצר עבורך. כדי להשתמש בו בפועל (פרסום/העלאה/קוד) – נדרש שדרוג ל-PRO.</div>
+                    </div>
+                    <button onClick={handleUpgradeTrigger} style={bannerUpgradeBtn}>שדרג ל-PRO</button>
+                </div>
+            )}
 
-            <div style={{ display: "flex", flex: 1, padding: "20px", gap: "20px" }}>
-                <div style={{ flex: 1, position: 'relative' }} onContextMenu={(e) => !isPro && e.preventDefault()}>
-                    {!isPro && (
-                        <div style={freeBannerStyle}>
-                            <span style={{ fontSize: '1.2rem', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>👀 זהו דף תצוגה בלבד</span>
-                            <span style={{ fontSize: '0.9rem', opacity: 0.9 }}>כדי להשתמש בדף הזה בפועל ולהעלות אותו לאתר שלך – יש לשדרג לגרסת PRO.</span>
-                        </div>
-                    )}
-
-                    <div style={{ filter: isPro ? 'none' : 'blur(10px)', transition: 'filter 0.5s ease', pointerEvents: isPro ? 'auto' : 'none' }}>
+            <div style={contentGrid}>
+                {/* Main Preview Area */}
+                <div style={previewArea} onContextMenu={(e) => !isPro && e.preventDefault()}>
+                    <div style={{ filter: isPro ? 'none' : 'blur(0)', transition: 'filter 0.5s ease', height: '100%' }}>
                         <RocketPreview data={data} />
                     </div>
 
                     {!isPro && (
-                        <div style={overlayStyle}>
-                            <div style={blurOverlayStyle} />
-                            <button onClick={() => setIsUpgradeModalOpen(true)} style={unlockBtnFloating}>🔒 קבל קובץ מוכן לשימוש</button>
+                        <div style={lockOverlay}>
+                            <button onClick={handleUpgradeTrigger} style={floatingLockBtn}>🔒 שדרג ל-PRO כדי להסיר את המגבלות</button>
                         </div>
                     )}
                 </div>
 
+                {/* Sidebar Actions */}
                 <div style={sidebarStyle} className="hidden md:block">
-                    <h3 style={{ marginBottom: "15px" }}>אפשרויות</h3>
-                    <button onClick={() => isPro ? handleDownload() : setIsUpgradeModalOpen(true)} style={sideBtn}>
-                        {isPro ? 'השתמש בדף הזה (ZIP) ✅' : '🔒 קבל קובץ מוכן לשימוש'}
+                    <h3 style={{ marginBottom: "20px", fontSize: '1.2rem', fontWeight: '800' }}>פעולות אפשריות</h3>
+
+                    {/* Primary Download Action */}
+                    <div style={{ marginBottom: '15px' }}>
+                        <button onClick={() => isPro ? handleDownload() : handleUpgradeTrigger()} style={isPro ? btnPrimary : btnLocked}>
+                            {isPro ? 'הורדת קוד מלא (HTML/React) 📥' : '🔒 הורדת קוד (PRO)'}
+                        </button>
+                        {!isPro && <div style={helperText}>כדי לפרסם או להעלות לאתר שלך</div>}
+                    </div>
+
+                    {/* Improve Text Action */}
+                    <div style={{ marginBottom: '15px' }}>
+                        <button onClick={handleUpgradeTrigger} style={btnLocked}>
+                            🔒 שפר טקסט עם AI (PRO)
+                        </button>
+                        {!isPro && <div style={helperText}>הופך את הטקסט ליותר משכנע ומוכר</div>}
+                    </div>
+
+                    <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("תראו את האתר ש-AI בנה לי! " + window.location.href)}`, '_blank')} style={btnSecondary}>
+                        שתף בוואטסאפ 💬
                     </button>
+
                     {!isPro && (
-                        <button onClick={() => setIsUpgradeModalOpen(true)} style={sideBtn}>🔒 שפר את הדף והגדל המרות</button>
+                        <div style={{ marginTop: '20px', padding: '20px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                            <h4 style={{ fontWeight: 'bold', marginBottom: '10px', color: '#60a5fa' }}>למה כדאי לשדרג?</h4>
+                            <ul style={{ listStyle: 'none', padding: 0, fontSize: '0.9rem', color: '#cbd5e1' }}>
+                                <li style={{ marginBottom: '8px' }}>✅ בעלות מלאה על הקוד</li>
+                                <li style={{ marginBottom: '8px' }}>✅ ללא סימן מים</li>
+                                <li>✅ שימוש מסחרי מותר</li>
+                            </ul>
+                            <button onClick={handleUpgradeTrigger} style={{ ...btnPrimary, marginTop: '15px', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>שדרג עכשיו 🚀</button>
+                        </div>
                     )}
-                    <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("תראו את האתר ש-AI בנה לי! " + window.location.href)}`, '_blank')} style={sideBtn}>שתף בוואטסאפ 💬</button>
-                    {!isPro && <button onClick={() => setIsUpgradeModalOpen(true)} style={upgradeBtnSide}>שדרג ל-PRO 🚀</button>}
                 </div>
             </div>
 
             {!isPro && (
                 <div className="md:hidden" style={mobileStickyStyle}>
-                    <button onClick={() => setIsUpgradeModalOpen(true)} style={checkAccessBtnStyle}>🔒 קבל את הדף הזה</button>
-                </div>
-            )}
-
-            {isUpgradeModalOpen && (
-                <div style={modalOverlay}>
-                    <div style={modalContent}>
-                        <h2 style={{ fontSize: '2rem', color: '#fff', marginBottom: '25px' }}>🚀 שדרוג לגרסת PRO</h2>
-
-                        <div style={upgradeSectionStyle}>
-                            <h3 style={sectionTitleStyle}>יש לי קוד</h3>
-                            <input
-                                type="text"
-                                placeholder="הכנס קוד PRO (למשל LAUNCH49)"
-                                value={coupon}
-                                onChange={(e) => setCoupon(e.target.value)}
-                                style={modalInputStyle}
-                            />
-                            <button onClick={checkCoupon} style={checkAccessBtnStyle}>הפעל קוד</button>
-                        </div>
-
-                        <div style={{ margin: '20px 0', color: '#94a3b8', fontSize: '1rem', fontWeight: 'bold' }}>או</div>
-
-                        <div style={upgradeSectionStyle}>
-                            <h3 style={sectionTitleStyle}>קבל קוד בוואטסאפ</h3>
-                            <button onClick={upgradeViaWhatsapp} style={whatsappBtnStyle}>קבל קוד בוואטסאפ</button>
-                        </div>
-
-                        <div style={{ marginTop: '25px' }}>
-                            <button onClick={() => setIsUpgradeModalOpen(false)} style={closeBtnStyle}>ביטול</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showSuccessModal && (
-                <div style={modalOverlay}>
-                    <div style={modalContent}>
-                        <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🎉</div>
-                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '15px' }}>השדרוג הושלם בהצלחה!</h2>
-                        <p style={{ color: '#94a3b8', marginBottom: '25px', fontSize: '1.2rem' }}>🎉 השדרוג הושלם! גרסת PRO הופעלה.</p>
-                        <button onClick={() => setShowSuccessModal(false)} style={checkAccessBtnStyle}>מדהים, תודה! ✨</button>
-                    </div>
+                    <button onClick={handleUpgradeTrigger} style={checkAccessBtnStyle}>🔒 קבל את הדף הזה</button>
                 </div>
             )}
         </div>
     );
 }
 
+// --- Styles ---
 const containerStyle = { minHeight: "100vh", background: "#05070a", color: "white", display: "flex", flexDirection: "column" };
 const fullPageCenter = { minHeight: "100vh", background: "#05070a", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" };
 const errorScreenStyle = { minHeight: '100vh', background: '#05070a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', textAlign: 'center' };
-const freeBannerStyle = { background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '15px', borderRadius: '12px', marginBottom: '20px', textAlign: 'center', color: '#fff' };
-const overlayStyle = { position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '40px', zIndex: 10 };
-const blurOverlayStyle = { position: 'absolute', inset: 0, background: 'linear-gradient(to top, #05070a 20%, transparent)', backdropFilter: 'blur(4px)' };
-const unlockBtnFloating = { position: 'relative', zIndex: 20, padding: '15px 30px', background: '#22c55e', color: 'white', borderRadius: '50px', border: 'none', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 10px 30px rgba(34,197,94,0.5)' };
-const sidebarStyle = { width: "300px", background: "rgba(255,255,255,0.05)", borderRadius: "20px", padding: "20px", border: "1px solid rgba(255,255,255,0.1)", height: "fit-content" };
-const sideBtn = { width: "100%", padding: "14px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", marginBottom: "12px", cursor: "pointer" };
-const upgradeBtnSide = { width: "100%", padding: "14px", background: "linear-gradient(135deg, #3b82f6, #2563eb)", border: "none", borderRadius: "12px", color: "white", fontWeight: "bold", cursor: "pointer" };
-const mobileStickyStyle = { position: 'fixed', bottom: 0, left: 0, right: 0, padding: '20px', background: 'linear-gradient(to top, #05070a 80%, transparent)', zIndex: 1000 };
-const modalOverlay = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' };
-const modalContent = { background: '#1e293b', padding: '35px', borderRadius: '24px', textAlign: 'center', color: 'white', maxWidth: '450px', width: '100%', border: '2px solid #3b82f6', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' };
-const checkAccessBtnStyle = { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color: 'white', width: '100%', padding: '16px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', border: 'none', marginTop: '10px', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)' };
-const closeBtnStyle = { background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem', textDecoration: 'underline' };
-const modalInputStyle = { width: '100%', padding: '14px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '2px solid #3b82f6', color: 'white', textAlign: 'center', fontSize: '1.1rem', outline: 'none', marginBottom: '10px' };
-const upgradeSectionStyle = { textAlign: 'center' };
-const sectionTitleStyle = { fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '15px', color: '#fff' };
-const whatsappBtnStyle = { background: '#25d366', color: 'white', width: '100%', padding: '16px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', border: 'none' };
+const displayFlexGap15 = { display: 'flex', gap: '15px' };
+const premiumBannerStyle = { background: '#1e3a8a', color: 'white', padding: '15px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', borderBottom: '1px solid #3b82f6', textAlign: 'right' };
+const bannerUpgradeBtn = { background: '#fff', color: '#1e3a8a', border: 'none', padding: '8px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' };
+const contentGrid = { display: "flex", flex: 1, padding: "30px", gap: "30px", maxWidth: '1600px', margin: '0 auto', width: '100%' };
+const previewArea = { flex: 1, position: 'relative', background: '#0f172a', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', minHeight: '600px' };
+const lockOverlay = { position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 };
+const floatingLockBtn = { padding: '12px 30px', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', color: 'white', borderRadius: '50px', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' };
+const sidebarStyle = { width: "320px", background: "rgba(30, 41, 59, 0.4)", borderRadius: "24px", padding: "25px", border: '1px solid rgba(255,255,255,0.1)', height: "fit-content" };
+const btnPrimary = { width: '100%', padding: '14px', background: '#3b82f6', color: 'white', borderRadius: '14px', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.3)' };
+const btnLocked = { width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', textAlign: 'right', display: 'flex', justifyContent: 'space-between' };
+const btnSecondary = { width: '100%', padding: '14px', background: 'transparent', color: '#94a3b8', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' };
+const helperText = { fontSize: '0.85rem', color: '#64748b', marginTop: '6px', paddingRight: '10px' };
+const mobileStickyStyle = { position: 'fixed', bottom: 0, left: 0, right: 0, padding: '20px', background: '#020617', borderTop: '1px solid rgba(255,255,255,0.1)', zIndex: 1000 };
+const checkAccessBtnStyle = { background: '#22c55e', color: 'white', width: '100%', padding: '16px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', border: 'none' };
 const primaryActionBtnStyle = { padding: '12px 24px', background: '#3b82f6', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' };
 const secondaryActionBtnStyle = { padding: '12px 24px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' };
 

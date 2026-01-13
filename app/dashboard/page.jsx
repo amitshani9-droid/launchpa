@@ -8,6 +8,7 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { VALID_PRO_CODES, SITE_LIMIT } from "@/lib/constants";
+import { useUser } from "@/context/UserContext";
 
 const heebo = Heebo({ subsets: ["hebrew"] });
 
@@ -17,6 +18,7 @@ export default function Dashboard() {
     const [isPro, setIsPro] = useState(false);
     const [user, setUser] = useState(null);
     const router = useRouter();
+    const { openUpgradeModal } = useUser();
 
     const LIMIT = SITE_LIMIT;
     const remaining = Math.max(0, LIMIT - sites.length);
@@ -99,14 +101,16 @@ export default function Dashboard() {
                                 <p style={{ opacity: 0.9, marginBottom: '15px' }}>
                                     נשארו לך <strong>{remaining > 0 ? remaining : 0}</strong> אתרים בתוכנית החינמית.
                                 </p>
-                                <Link href="/result?id=demo"> {/* לינק שדרוג */}
-                                    <button style={{
-                                        padding: '10px 20px', background: 'white', color: '#2563eb',
-                                        border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer'
-                                    }}>
-                                        שדרג עכשיו ל-PRO 💎
-                                    </button>
-                                </Link>
+                                <button
+                                    onClick={() => openUpgradeModal()}
+                                    style={{
+                                        padding: '12px 25px', background: 'white', color: '#2563eb',
+                                        border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer',
+                                        boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
+                                    }}
+                                >
+                                    שדרג עכשיו ל-PRO 💎
+                                </button>
                             </div>
                         )}
                         {user && user.photoURL && (

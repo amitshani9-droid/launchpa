@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from 'react';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const UserContext = createContext();
 
@@ -9,6 +10,8 @@ export const UserProvider = ({ children }) => {
         isPro: false,
         loading: true
     });
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [businessData, setBusinessData] = useState(null);
 
     useEffect(() => {
         const savedName = localStorage.getItem("userName") || "";
@@ -28,6 +31,15 @@ export const UserProvider = ({ children }) => {
         setUser(prev => ({ ...prev, isPro: status }));
     };
 
+    const openUpgradeModal = (data = null) => {
+        setBusinessData(data);
+        setIsUpgradeModalOpen(true);
+    };
+
+    const closeUpgradeModal = () => {
+        setIsUpgradeModalOpen(false);
+    };
+
     const logout = () => {
         localStorage.clear();
         setUser({ name: "", isPro: false, loading: false });
@@ -35,8 +47,21 @@ export const UserProvider = ({ children }) => {
     };
 
     return (
-        <UserContext.Provider value={{ ...user, updateUserName, setProStatus, logout }}>
+        <UserContext.Provider value={{
+            ...user,
+            updateUserName,
+            setProStatus,
+            logout,
+            openUpgradeModal,
+            closeUpgradeModal,
+            isUpgradeModalOpen
+        }}>
             {children}
+            <UpgradeModal
+                isOpen={isUpgradeModalOpen}
+                onClose={closeUpgradeModal}
+                businessData={businessData}
+            />
         </UserContext.Provider>
     );
 };
