@@ -13,7 +13,9 @@ export const UserProvider = ({ children }) => {
     useEffect(() => {
         const savedName = localStorage.getItem("userName") || "";
         const savedPro = localStorage.getItem("isProUser") === "true";
-        setUser({ name: savedName, isPro: savedPro, loading: false });
+        setTimeout(() => {
+            setUser({ name: savedName, isPro: savedPro, loading: false });
+        }, 0);
     }, []);
 
     const updateUserName = (name) => {

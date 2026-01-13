@@ -4,6 +4,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { useRouter } from 'next/navigation';
 import { UserProvider } from '@/context/UserContext';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from './Navbar';
 
 export default function PremiumLayout({ children }) {
@@ -15,7 +16,7 @@ export default function PremiumLayout({ children }) {
             <UserProvider>
                 <Navbar />
 
-                <main style={{ paddingTop: '150px' }}>{children}</main>
+                <main style={{ paddingTop: '0' }}>{children}</main>
 
                 {/* Premium Footer Section */}
                 <footer style={{
@@ -40,7 +41,7 @@ export default function PremiumLayout({ children }) {
                         {/* עמודה 1: מותג */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <img src="/logo.png" style={{ width: '45px', height: '45px', borderRadius: '10px' }} alt="Footer Logo" />
+                                <Image src="/logo.png" width={45} height={45} style={{ borderRadius: '10px' }} alt="Footer Logo" />
                                 <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#fff' }}>LaunchPage AI</span>
                             </div>
                             <p style={{ color: '#94a3b8', lineHeight: '1.6', fontSize: '0.95rem' }}>

@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Heebo } from "next/font/google";
+import Link from "next/link";
 import RocketPreview from "@/components/RocketPreview";
 import { useUser } from "@/context/UserContext";
 import { auth, loginWithGoogle, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, serverTimestamp, doc, getDoc, onSnapshot } from "firebase/firestore";
 import ReactConfetti from 'react-confetti';
-import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { validateHtml } from '@/lib/landing/validateHtml';
+import { renderHtml } from '@/lib/landing/renderHtml';
+import { downloadStandaloneSite } from '@/lib/landing/downloadSite';
+import { VALID_PRO_CODES, SUPPORT_PHONE } from '@/lib/constants';
 
 const heebo = Heebo({ subsets: ["hebrew"] });
 
@@ -27,6 +31,7 @@ function ResultContent() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [validationErrors, setValidationErrors] = useState([]);
 
     const [coupon, setCoupon] = useState("");
     const [discountApplied, setDiscountApplied] = useState(false);
@@ -41,7 +46,7 @@ function ResultContent() {
             console.error("שגיאה בהתחברות:", error);
         }
     };
-    const handleCheckAccess = async () => {
+    const handleCheckAccess = useCallback(async () => {
         console.log("Checking access for user:", user?.email);
         console.log("User UID:", user?.uid);
 
@@ -69,12 +74,12 @@ function ResultContent() {
         } catch (error) {
             console.error("Firestore Error:", error);
         }
-    };
+    }, [user]);
 
     const upgradeViaWhatsapp = () => {
         const email = user ? user.email : "אני רוצה לשדרג";
         const msg = encodeURIComponent(`היי עמית, אני רוצה לשדרג ל-PRO! האימייל שלי הוא: ${email}`);
-        window.open(`https://wa.me/972533407255?text=${msg}`, "_blank");
+        window.open(`https://wa.me/${SUPPORT_PHONE}?text=${msg}`, "_blank");
     };
 
     // סינכרון עם Firebase (נשאר כפי שהיה)
@@ -85,9 +90,9 @@ function ResultContent() {
             if (data?.isPro) setIsPro(true);
         });
         return () => unsub();
-    }, [user?.uid]);
+    }, [user]);
 
-    const saveSiteToHistory = async (siteData) => {
+    const saveSiteToHistory = useCallback(async (siteData) => {
         if (!user || !siteData) return;
         try {
             // Check if site already saved to avoid duplicates (optional, simplified for now)
@@ -100,15 +105,13 @@ function ResultContent() {
         } catch (e) {
             console.error("Error saving site:", e);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
         if (user && data && !params.get('id')) { // Only save if not viewing an existing saved site (by ID)
-            // We use a small timeout or check to prevent double saving in React Strict Mode
-            // For now, let's just save. In a real app we might ID checking.
             saveSiteToHistory(data);
         }
-    }, [user, data]);
+    }, [user, data, params, saveSiteToHistory]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -123,25 +126,49 @@ function ResultContent() {
         window.open(`https://wa.me/?text=${encodeURIComponent("תראו את האתר ש-AI בנה לי! " + url)}`, '_blank');
     };
 
-    const checkCoupon = () => {
-        if (coupon.toUpperCase() === "LAUNCH2026") {
+
+    const checkCoupon = useCallback(async () => {
+        const normalizedCoupon = coupon.trim().toUpperCase();
+        if (VALID_PRO_CODES.includes(normalizedCoupon)) {
             setDiscountApplied(true);
-            alert("קופון הופעל! 50% הנחה!");
+            setIsPro(true);
+            setShowConfetti(true);
+
+            // Persist locally
+            localStorage.setItem("isProUser", "true");
+            localStorage.setItem("proCoupon", normalizedCoupon);
+
+            // Persist to Firestore if logged in
+            if (user) {
+                try {
+                    const { doc, updateDoc } = await import("firebase/firestore");
+                    const userRef = doc(db, "users", user.uid);
+                    await updateDoc(userRef, { isPro: true, activatedCoupon: normalizedCoupon });
+                } catch (e) {
+                    console.error("Error updating Firestore:", e);
+                }
+            }
+
+            alert("קופון הופעל! גישת PRO פתוחה עבורך ✨");
         } else {
             alert("קופון לא בתוקף");
         }
-    };
+    }, [coupon, user]);
 
     // טעינת נתונים (נשאר כפי שהיה)
     useEffect(() => {
         async function loadData() {
             setLoading(true);
             if (params.get('local') === 'true') {
-                const localData = localStorage.getItem('generatedSite');
-                if (localData) {
-                    setData(JSON.parse(localData));
-                    setLoading(false);
-                    return;
+                try {
+                    const localData = localStorage.getItem("generatedSite");
+                    if (localData) {
+                        setData(JSON.parse(localData));
+                        setLoading(false);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse generatedSite from localStorage");
                 }
             }
             if (siteId && user) {
@@ -167,7 +194,14 @@ function ResultContent() {
                         body: JSON.stringify({ prompt })
                     });
                     const json = await res.json();
-                    setData(json);
+
+                    // Transform JSON to HTML using the rendering engine
+                    if (json && !json.error) {
+                        const html = renderHtml(json);
+                        setData({ ...json, html });
+                    } else {
+                        setError(json.error || "שגיאה ביצירת הדף");
+                    }
                 } catch (err) { setError("שגיאה ביצירת הדף"); }
                 finally { setLoading(false); }
             }
@@ -175,22 +209,77 @@ function ResultContent() {
         if (user || params.get('local')) {
             loadData();
         }
-    }, [prompt, params, user]);
+    }, [prompt, params, user, siteId]);
 
 
-    // פונקציית ההורדה הידנית (למשתמשי PRO קיימים)
+    useEffect(() => {
+        if (data && data.html) {
+            const { isValid, errors } = validateHtml(data.html);
+            if (!isValid) {
+                console.error("HTML Quality Gate Failed:", errors);
+                setValidationErrors(errors);
+            } else {
+                setValidationErrors([]);
+            }
+        }
+    }, [data]);
+
+
+    // פונקציית ההורדה המאוחדת (Standalone)
     const handleDownload = async () => {
-        if (!data) return;
-        const zip = new JSZip();
-        zip.file("index.html", generateHTML(data));
-        zip.file("style.css", generateCSS(data));
-        const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, "my-launchpage-site.zip");
+        if (!data || !data.html) return;
+        const title = data.businessName || "My Landing Page";
+        await downloadStandaloneSite(data.html, title);
     };
 
 
     if (loading) return <div style={fullPageCenter}>מייצר את הדף שלך... 🚀</div>;
-    if (!data) return null;
+
+    // Quality Gate Error Screen
+    if (validationErrors.length > 0) {
+        return (
+            <div style={{
+                minHeight: '100vh', background: '#05070a', color: 'white',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                padding: '40px', textAlign: 'center'
+            }}>
+                <div style={{ fontSize: '4rem', marginBottom: '20px' }}>⚠️</div>
+                <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '15px' }}>התוצאה לא עברה בדיקת איכות</h1>
+                <p style={{ color: '#94a3b8', maxWidth: '500px', marginBottom: '30px', fontSize: '1.2rem', lineHeight: '1.6' }}>
+                    אנחנו מוודאים שכל דף נחיתה שיוצא מהמערכת עומד ברף איכות גבוה.<br />
+                    מנסים לייצר את הדף מחדש.
+                </p>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{ padding: '12px 24px', background: '#3b82f6', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+                    >
+                        נסה שוב
+                    </button>
+                    <button
+                        onClick={() => router.push('/')}
+                        style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
+                    >
+                        חזרה לעריכה
+                    </button>
+                </div>
+                {/* Developer debug info (hidden in prod normally, but keeping for now) */}
+                <div style={{ marginTop: '40px', fontSize: '0.8rem', color: '#334155', textAlign: 'left' }}>
+                    {validationErrors.map((err, i) => <div key={i}>• {err}</div>)}
+                </div>
+            </div>
+        );
+    }
+
+    if (!loading && !data) {
+        return (
+            <div style={{ padding: 32, textAlign: "center", minHeight: "100vh", background: "#05070a", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <h2>אין דף להצגה</h2>
+                <p>נראה שעדיין לא נוצר דף נחיתה.</p>
+                <Link href="/create">צור דף חדש</Link>
+            </div>
+        );
+    }
 
     return (
         <div className={heebo.className} dir="rtl" style={containerStyle}>
@@ -204,9 +293,9 @@ function ResultContent() {
                     onContextMenu={(e) => !isPro && e.preventDefault()} // חוסם קליק ימני בחינמי
                 >
                     <div style={{
-                        filter: isPro ? 'none' : 'blur(10px)',
+                        filter: (isPro && validationErrors.length === 0) ? 'none' : 'blur(10px)',
                         transition: 'filter 0.5s ease',
-                        pointerEvents: isPro ? 'auto' : 'none'
+                        pointerEvents: (isPro && validationErrors.length === 0) ? 'auto' : 'none'
                     }}>
                         <RocketPreview data={data} />
                     </div>
@@ -242,11 +331,14 @@ function ResultContent() {
             {isUpgradeModalOpen && (
                 <div style={modalOverlay}>
                     <div style={modalContent}>
-                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '10px' }}>� שדרג ל-PRO</h2>
+                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '10px' }}>🚀 שדרג ל-PRO</h2>
 
                         {user ? (
                             // אם המשתמש מחובר - נציג לו את כפתור הבדיקה
                             <div style={{ textAlign: 'center' }}>
+                                <Link href="/" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
+                                    חזרה לדף הבית
+                                </Link>
                                 <p style={{ color: '#94a3b8', marginBottom: '15px' }}>
                                     מחובר כ: <span style={{ color: '#3b82f6' }}>{user.email}</span>
                                 </p>
@@ -371,164 +463,7 @@ const closeBtnStyle = {
     textDecoration: 'underline'
 };
 
-// --- Helpers (גנרטורים של קוד) ---
-function generateHTML(data) {
-    const primary = data.style?.primaryColor || "#2563eb";
-    const bg = data.style?.backgroundColor || "#ffffff";
-    const title = data.hero ? data.hero.title : data.title;
-    const description = data.hero ? data.hero.description : data.subtitle;
-
-    return `
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${title}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
-        <style>
-            :root {--primary: ${primary}; --bg: ${bg}; }
-            body {background-color: var(--bg); color: #1e293b; font-family: 'Heebo', sans-serif; margin: 0; padding: 0; line-height: 1.6; }
-            .hero {padding: 100px 20px; text-align: center; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
-            h1 {color: var(--primary); font-size: 3rem; margin-bottom: 20px; font-weight: 900; }
-            .features {display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; padding: 60px 20px; max-width: 1000px; margin: 0 auto; }
-            .feature-card {background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: right; }
-            .cta-btn {background: var(--primary); color: white; padding: 15px 30px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; }
-            footer { text-align: center; padding: 40px; border-top: 1px solid #e2e8f0; margin-top: 40px; }
-        </style>
-    </head>
-    <body>
-        <header class="hero">
-            <h1>${title}</h1>
-            <p style="font-size: 1.3rem; color: #475569; max-width: 700px; margin: 0 auto 30px;">${description}</p>
-            <a href="#" class="cta-btn">${data.hero ? data.hero.cta : (data.cta_button || "צור קשר")}</a>
-        </header>
-
-        <main class="features">
-            ${data.features ? data.features.map(f => `
-                <div class="feature-card">
-                    <h3 style="color: var(--primary); margin-bottom: 10px; font-size: 1.25rem;">${f.title}</h3>
-                    <p style="color: #64748b;">${f.desc}</p>
-                </div>
-            `).join('') : (data.sections?.map(s => `
-                <div class="feature-card">
-                    <h3 style="color: var(--primary); margin-bottom: 10px; font-size: 1.25rem;">${s.title}</h3>
-                    <p style="color: #64748b;">${s.text}</p>
-                </div>
-            `).join('') || "")}
-        </main>
-
-        <footer>
-            <p>Built with LaunchPage AI 🚀</p>
-        </footer>
-    </body>
-</html>`.trim();
-}
-
-function generateCSS(data) {
-    const primary = data.style?.primaryColor || "#2563eb";
-    const bg = data.style?.backgroundColor || "#ffffff";
-    const text = data.style?.backgroundColor === "#0f172a" ? "#ffffff" : "#0f172a";
-
-    return `
-:root {
-    --primary: ${primary};
-    --secondary: #7c3aed;
-    --bg: ${bg};
-    --text: ${text};
-    --surface: ${data.style?.backgroundColor === "#0f172a" ? "rgba(255,255,255,0.05)" : "#f1f5f9"};
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-    font-family: 'Heebo', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-}
-
-.container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.hero {
-    text-align: center;
-    padding: 80px 20px;
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    border-bottom: 1px solid #cbd5e1;
-    margin-bottom: 40px;
-}
-
-h1 {
-    font-size: 3rem;
-    font-weight: 900;
-    margin-bottom: 20px;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-    font-size: 1.25rem;
-    opacity: 0.8;
-    margin-bottom: 30px;
-    max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.content-section {
-    margin-bottom: 40px;
-    padding: 30px;
-    background: var(--surface);
-    border-radius: 20px;
-}
-
-h2 {
-    font-size: 1.8rem;
-    margin-bottom: 15px;
-    color: var(--primary);
-}
-
-.cta-button {
-    display: inline-block;
-    padding: 15px 30px;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    color: white;
-    text-decoration: none;
-    font-weight: bold;
-    border-radius: 12px;
-    border: none;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: transform 0.2s;
-}
-
-.cta-button:hover {
-    transform: scale(1.05);
-}
-
-.footer {
-    text-align: center;
-    padding: 60px 20px;
-    background: #0f172a;
-    color: white;
-    margin-top: 60px;
-}
-
-.footer p {
-    margin-bottom: 20px;
-    font-size: 1.2rem;
-}
-
-@media (max-width: 600px) {
-    h1 { font-size: 2.5rem; }
-    .hero { padding: 50px 20px; }
-}`.trim();
-}
+// --- End of Page ---
 
 export default function ResultPage() {
     return (

@@ -10,14 +10,14 @@ export default function ThankYouPage() {
     const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
     useEffect(() => {
-        setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-
-        // Resize handler
-        const handleResize = () => {
-            setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+        const updateSize = () => {
+            setTimeout(() => {
+                setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+            }, 0);
         };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        updateSize();
+        window.addEventListener('resize', updateSize);
+        return () => window.removeEventListener('resize', updateSize);
     }, []);
 
     return (

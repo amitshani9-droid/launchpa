@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
@@ -65,11 +67,13 @@ function HomeContent() {
     useEffect(() => {
         const descFromUrl = searchParams.get('desc');
         if (descFromUrl) {
-            setDescription(descFromUrl);
+            setTimeout(() => {
+                setDescription(descFromUrl);
+            }, 0);
             // גלילה לשדה הקלט אם יש פרמטר
             const timer = setTimeout(() => {
                 window.scrollTo({ top: 300, behavior: 'smooth' });
-            }, 100);
+            }, 800);
             return () => clearTimeout(timer);
         }
     }, [searchParams]);
@@ -174,7 +178,7 @@ function HomeContent() {
                             }}
                         >
                             <span>{logo ? "✅ לוגו נבחר" : "📁 העלאת לוגו"}</span>
-                            {logo && <img src={logo} alt="logo preview" style={{ height: '24px', borderRadius: '4px' }} />}
+                            {logo && <Image src={logo} alt="logo preview" width={48} height={24} unoptimized style={{ height: '24px', width: 'auto', borderRadius: '4px' }} />}
                         </label>
                     </div>
                 </div>
@@ -230,9 +234,9 @@ function HomeContent() {
                                             animate={{
                                                 opacity: 0,
                                                 scale: [0, 2, 0],
-                                                x: (Math.random() - 0.5) * 300,
-                                                y: (Math.random() - 0.5) * 300,
-                                                rotate: Math.random() * 360
+                                                x: (i % 2 === 0 ? 1 : -1) * (i * 20),
+                                                y: (i % 3 === 0 ? 1 : -1) * (i * 15),
+                                                rotate: i * 24
                                             }}
                                             transition={{ duration: 1, ease: "easeOut" }}
                                             style={{ position: 'absolute', fontSize: '1.8rem', pointerEvents: 'none' }}

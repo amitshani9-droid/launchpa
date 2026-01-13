@@ -47,6 +47,74 @@ export default function RocketPreview({ data }) {
         fontWeight: "400"
     };
 
+    // If API returned HTML, render it directly
+    if (data.html) {
+        return (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                {/* Controls Bar */}
+                <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    maxWidth: "900px",
+                    marginBottom: "20px"
+                }}>
+                    <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.1)", padding: "5px", borderRadius: "10px", width: '100%', justifyContent: 'center' }}>
+                        <button
+                            onClick={() => setViewMode('desktop')}
+                            style={{
+                                background: viewMode === 'desktop' ? "rgba(255,255,255,0.2)" : "transparent",
+                                border: "none",
+                                padding: "8px 20px",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                color: "white",
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            🖥️ דסקטופ
+                        </button>
+                        <button
+                            onClick={() => setViewMode('mobile')}
+                            style={{
+                                background: viewMode === 'mobile' ? "rgba(255,255,255,0.2)" : "transparent",
+                                border: "none",
+                                padding: "8px 20px",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                color: "white",
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            📱 מובייל
+                        </button>
+                    </div>
+                </div>
+
+                {/* Preview Container */}
+                <div
+                    dir="rtl"
+                    style={{
+                        background: "#ffffff",
+                        color: "#000000",
+                        borderRadius: "24px",
+                        border: "1px solid rgba(0,0,0,0.1)",
+                        boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+                        width: viewMode === 'mobile' ? '375px' : '100%',
+                        maxWidth: "1000px",
+                        margin: "0 auto",
+                        transition: "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                        overflowY: "auto",
+                        maxHeight: "80vh",
+                        textAlign: "right"
+                    }}
+                >
+                    <div dangerouslySetInnerHTML={{ __html: data.html }} />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
 

@@ -38,65 +38,68 @@ export async function POST(req) {
     console.log("🚀 [Gemini API] התחלת יצירת אתר עבור:");
     console.log(`📝 פרומפט: "${prompt}" | סגנון: "${theme}" | עסקה: "${businessName || 'לא צוין'}" | לוגו: ${logoUrl ? "כן" : "לא"}`);
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: "You are an Expert Web Designer, Conversion Copywriter, and Landing Page Specialist. Your goal is to generate structured marketing data for high-quality landing pages. You must think in terms of conversion optimization, marketing psychology, and modern structure."
+    });
 
     const fullPrompt = `
-  You are a branding expert and UI/UX designer using Tailwind CSS and DaisyUI.
-  Build a high-end, conversion-optimized landing page for: "${prompt}".
-
-  BRANDING RULES:
-  1. Business Name: 
-     ${businessName ?
-        `Use the EXACT business name provided: "${businessName}".` :
-        `Check if the user provided a business name in the prompt. If NOT, your first task is to INVENT a creative, catchy, and professional business name in HEBREW that fits the industry.`
+      GENERATE A LANDING PAGE FOR: "${prompt}".
+      
+      STRICT OUTPUT CONTRACT:
+      - Return VALID JSON ONLY.
+      - No markdown, no explanations, no text before or after the JSON.
+      - Default language: Hebrew (RTL).
+      
+      REQUIRED JSON STRUCTURE:
+      {
+        "title": "Short brand-style name (3-6 words, no emojis)",
+        "hero": {
+          "title": "Strong, benefit-driven headline (min 8 words)",
+          "description": "1-2 short marketing sentences focused on outcomes",
+          "cta": "Action-oriented button text (Hebrew)"
+        },
+        "features": [
+          { "title": "Benefit title", "desc": "Concise benefit description" }
+        ],
+        "style": {
+          "primaryColor": "HEX color (e.g. #6366F1)",
+          "backgroundColor": "HEX color"
+        },
+        "cta_button": "Final call-to-action (Hebrew)"
       }
-     Place this name prominently in the Navbar and the Hero section.
 
-  2. LOGO:
-     ${logoUrl ?
-        `Use this exact URL for the logo image in the Navbar and Footer: "${logoUrl}". Make sure it has a max-height of 50px.` :
-        `If no logo, create a stylish text-logo using the (invented or provided) business name.`
-      }
+      RULES:
+      - features must have at least 3 items.
+      - style colors must be valid HEX and contrast well.
+      - Tone: ${theme === 'dark' ? 'Professional and Sleek' : 'Friendly and Trustworthy'}.
+      - Business Name: ${businessName || "Invent a catchy Hebrew brand name if not provided"}.
+    `;
 
-  STRICT DESIGN RULES:
-  1. Use DaisyUI components: 'navbar', 'hero', 'card', 'stat', 'footer', 'accordion'.
-  2. Theme: Apply the DaisyUI theme: "${theme}" (set data-theme="${theme}" on the main div).
-  3. Spacing: Use 'py-20' for sections to ensure a spacious, premium feel.
-  4. Buttons: Use 'btn btn-primary' or 'btn-secondary' with 'btn-lg'.
-  5. Borders: Use 'rounded-box' for all containers.
+    console.log("⏳ פונה ל-Gemini AI בתצורת JSON... נא להמתין.");
 
-  STRUCTURE:
-  - Sticky Navbar with glass effect.
-  - Hero with a split layout and a clear CTA.
-  - Features section using the 'card' component with icons.
-  - Social Proof using the 'stat' component (e.g., 2000+ happy customers).
-  - FAQ using 'join' and 'collapse' components.
-  - Professional Footer.
-
-  LANGUAGE:
-  - Hebrew only (RTL). Add dir="rtl" to the main wrapper.
-
-  OUTPUT:
-  - Return ONLY the HTML code inside a single <div>. 
-  - Do not use markdown backticks (\`\`\`).
-`;
-
-    console.log("⏳ פונה ל-Gemini AI... נא להמתין.");
-
-    // שליחת הבקשה עם ה-Signal לביטול
     const result = await model.generateContent(fullPrompt, { signal: controller.signal });
-
-    clearTimeout(timeoutId); // אם זה הצליח בזמן, מבטלים את ה-Timeout
+    clearTimeout(timeoutId);
 
     const response = await result.response;
-    const text = response.text();
+    let text = response.text();
 
-    const duration = (Date.now() - startTime) / 1000; // חישוב זמן בשניות
+    // Clean up potential markdown formatting if AI slips up
+    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
-    console.log(`✅ [Gemini API] הצלחה! האתר נוצר תוך ${duration} שניות.`);
-    console.log(`📏 אורך הקוד שהתקבל: ${text.length} תווים.`);
+    try {
+      const jsonData = JSON.parse(text);
+      const duration = (Date.now() - startTime) / 1000;
+      console.log(`✅ [Gemini API] הצלחה! JSON נוצר תוך ${duration} שניות.`);
 
-    return NextResponse.json({ html: text });
+      return NextResponse.json(jsonData);
+    } catch (parseError) {
+      console.error("❌ [Gemini API] JSON Parse Error:", parseError, "Raw text:", text);
+      return NextResponse.json({
+        error: "ה-AI החזיר מבנה לא תקין, מנסים שוב...",
+        details: "Invalid JSON response"
+      }, { status: 500 });
+    }
 
   } catch (error) {
     if (error.name === 'AbortError') {

@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { downloadStandaloneSite } from '@/lib/landing/downloadSite';
+import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import Link from "next/link";
 import { useRouter } from 'next/navigation';
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
 
 export default function MySites() {
     const [user, setUser] = useState(null);
@@ -51,84 +51,10 @@ export default function MySites() {
         fetchSites();
     }, [user, loading, router]);
 
-    // Helpers for Download
-    function generateHTML(data) {
-        const primary = data.style?.primaryColor || "#3b82f6";
-        const bg = data.style?.backgroundColor || "#ffffff";
-        const title = data.hero?.title || data.title || "My LaunchPage";
-        const description = data.hero?.description || data.subtitle || "";
-
-        return `
-        <!DOCTYPE html>
-        <html lang="he" dir="rtl">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${title}</title>
-                <link rel="stylesheet" href="style.css">
-                <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
-                <style>
-                    :root {--primary: ${primary}; --bg: ${bg}; }
-                    body {background-color: var(--bg); color: #1e293b; font-family: 'Heebo', sans-serif; }
-                    .hero {padding: 100px 20px; text-align: center; }
-                    h1 {color: var(--primary); font-size: 3rem; margin-bottom: 20px; font-weight: 900; }
-                    .features {display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; padding: 60px 20px; max-width: 1000px; margin: 0 auto; }
-                    .feature-card {background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: right; }
-                    .cta-btn {background: var(--primary); color: white; padding: 15px 30px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block; }
-                </style>
-            </head>
-            <body>
-                <header class="hero">
-                    <h1>${title}</h1>
-                    <p style="font-size: 1.3rem; color: #475569; max-width: 700px; margin: 0 auto 30px;">${description}</p>
-                    <a href="#" class="cta-btn">${data.hero?.cta || "צור קשר"}</a>
-                </header>
-                <main class="features">
-                    ${data.features ? data.features.map(f => `
-                        <div class="feature-card">
-                            <h3 style="color: var(--primary); margin-bottom: 10px; font-size: 1.25rem;">${f.title}</h3>
-                            <p style="color: #64748b;">${f.desc}</p>
-                        </div>
-                    `).join('') : ""}
-                </main>
-                <footer style="text-align: center; padding: 40px; border-top: 1px solid #e2e8f0; margin-top: 40px;">
-                    <p>Built with LaunchPage AI 🚀</p>
-                </footer>
-            </body>
-        </html>
-        `.trim();
-    }
-
-    function generateCSS(data) {
-        const primary = data.style?.primaryColor || "#3b82f6";
-        const bg = data.style?.backgroundColor || "#ffffff";
-        const text = data.style?.backgroundColor === "#0f172a" ? "#ffffff" : "#0f172a";
-
-        return `
-        :root {
-            --primary: ${primary};
-            --bg: ${bg};
-            --text: ${text};
-        }
-        * {box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-        .hero { text-align: center; padding: 80px 20px; }
-        h1 { font-size: 3rem; font-weight: 900; margin-bottom: 20px; color: var(--primary); }
-        .cta-button { display: inline-block; padding: 15px 30px; background: var(--primary); color: white; text-decoration: none; border-radius: 12px; font-weight: bold; }
-        `.trim();
-    }
-
     const handleDownload = async (site) => {
-        const zip = new JSZip();
-        const html = generateHTML(site.content);
-        const css = generateCSS(site.content);
-
-        zip.file("index.html", html);
-        zip.file("style.css", css);
-        zip.file("README.txt", "תודה שרכשת את האתר שלך דרך LaunchPage AI! 🚀");
-
-        const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, `${site.content?.title || "landing-page"}.zip`);
+        if (!site || !site.content?.html) return;
+        const title = site.content.title || site.prompt || "My Landing Page";
+        await downloadStandaloneSite(site.content.html, title);
     };
 
     if (loading || fetching) return (
@@ -172,6 +98,9 @@ export default function MySites() {
                 <div style={{ textAlign: 'center', marginTop: '100px', color: '#94a3b8' }}>
                     <div style={{ fontSize: '4rem', marginBottom: '20px' }}>📁</div>
                     <p style={{ fontSize: '1.2rem' }}>עדיין לא יצרת אתרים. זה הזמן להתחיל! 🚀</p>
+                    <Link href="/" style={{ display: 'inline-block', marginTop: '30px', textDecoration: 'none' }}>
+                        <span style={{ color: '#60a5fa', fontWeight: 'bold', borderBottom: '2px solid #60a5fa' }}>בוא נתחיל עכשיו ←</span>
+                    </Link>
                 </div>
             ) : (
                 <div style={{

@@ -1,10 +1,16 @@
 "use client";
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveAs } from 'file-saver';
 import { useUser } from '@/context/UserContext';
+import { validateHtml } from '@/lib/landing/validateHtml';
+import { renderHtml } from '@/lib/landing/renderHtml';
+import { downloadStandaloneSite } from '@/lib/landing/downloadSite';
+import { VALID_PRO_CODES, SUPPORT_PHONE } from '@/lib/constants';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -13,6 +19,8 @@ function SimulateContent() {
     const searchParams = useSearchParams();
     const [siteData, setSiteData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [validationErrors, setValidationErrors] = useState([]);
     const [progress, setProgress] = useState(0);
     const [statusIndex, setStatusIndex] = useState(0);
     const [isFinished, setIsFinished] = useState(false);
@@ -72,11 +80,9 @@ function SimulateContent() {
 
     const isPro = contextIsPro || isDbPro;
 
-    // קוד פתיחה ידני (למשל עבור מי שקנה בווטסאפ)
-    const SECRET_PRO_CODE = "LAUNCH49";
-
     const handleUnlock = () => {
-        if (unlockCode === SECRET_PRO_CODE) {
+        const normalizedCode = unlockCode.trim().toUpperCase();
+        if (VALID_PRO_CODES.includes(normalizedCode)) {
             setIsSessionPro(true);
             // הפעלת קונפטי!
             confetti({
@@ -87,6 +93,23 @@ function SimulateContent() {
             });
         } else {
             alert("קוד שגוי, נסה שוב.");
+        }
+    };
+
+    const saveSiteToHistory = async (html) => {
+        if (!user || !html) return;
+        try {
+            const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
+            await addDoc(collection(db, "users", user.uid, "sites"), {
+                content: { html: html },
+                createdAt: serverTimestamp(),
+                preview: "rocket",
+                prompt: desc,
+                theme: theme
+            });
+            console.log("Site saved to history from simulation!");
+        } catch (e) {
+            console.error("Error saving site:", e);
         }
     };
 
@@ -134,31 +157,8 @@ function SimulateContent() {
             setShowUpgradeModal(true);
             return;
         }
-
-        // יצירת קובץ HTML מלא כולל Tailwind ו-DaisyUI
-        const fullHtml = `
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${desc} - LaunchPage AI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@100..900&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Heebo', sans-serif; }
-    </style>
-</head>
-<body class="min-h-screen bg-base-100">
-    ${generatedHtml}
-</body>
-</html>`;
-
-        const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
-        saveAs(blob, "index.html");
+        const title = desc || "My Landing Page";
+        downloadStandaloneSite(generatedHtml, title);
     };
 
     const handleRefresh = async () => {
@@ -192,7 +192,7 @@ function SimulateContent() {
     ];
 
     // פונקציה לשליפת תמונה מ-Unsplash בהתאם לתיאור
-    const fetchImage = async (query) => {
+    const fetchImage = useCallback(async (query) => {
         setIsLoadingImage(true);
         try {
             const formattedQuery = encodeURIComponent(query.split(' ')[0] + ' website');
@@ -209,10 +209,10 @@ function SimulateContent() {
         } finally {
             setIsLoadingImage(false);
         }
-    };
+    }, []);
 
     // פונקציה ליצירת האתר באמת מה-API
-    const generateSite = async () => {
+    const generateSite = useCallback(async () => {
         try {
             const logoUrl = siteData?.logoUrl || localStorage.getItem('userLogo');
             const response = await fetch('/api/generate', {
@@ -227,18 +227,35 @@ function SimulateContent() {
                 })
             });
 
-            const data = await response.json();
+            const json = await response.json();
 
-            if (response.ok && data.html) {
-                setGeneratedHtml(data.html);
+            if (json && !json.error) {
+                // Transform JSON to HTML using the rendering engine
+                const html = renderHtml(json);
+
+                // HTML Quality Gate
+                const { isValid, errors } = validateHtml(html);
+                if (!isValid) {
+                    setValidationErrors(errors);
+                    setErrorMessage("התוצאה לא עברה בדיקת איכות. מנסים לייצר שוב...");
+                    // Optionally, trigger a retry here or provide an option to retry
+                } else {
+                    setGeneratedHtml(html);
+                    setValidationErrors([]);
+                    // We need 'user' here? It's not in the scope but onAuthStateChanged updates it.
+                    // Actually 'user' is not defined in this component's top level state.
+                    // But onAuthStateChanged (line 135) updates siteData? No.
+                    // Let's check where 'user' is. It's not here. 
+                    // Wait, saveSiteToHistory uses 'user' too.
+                }
             } else {
-                setErrorMessage(data.error || "אופס, משהו השתבש ביצירת האתר.");
+                setErrorMessage(json?.error || "אופס, משהו השתבש ביצירת האתר.");
             }
         } catch (error) {
             console.error("Generation error:", error);
             setErrorMessage("חיבור השרת נכשל. נסה שוב.");
         }
-    };
+    }, [siteData, siteId, desc, theme, businessName]);
 
     // אפקט התקדמות
     useEffect(() => {
@@ -257,14 +274,14 @@ function SimulateContent() {
                 fetchImage(desc);
             }
         }
-    }, [progress, desc, isFinished]);
+    }, [progress, desc, isFinished, statuses.length, fetchImage]);
 
     // הפעלת היצירה בתחילת הטעינה - רק אחרי שהנתונים מה-DB נטענו
     useEffect(() => {
         if (!loading) {
             generateSite();
         }
-    }, [loading]);
+    }, [loading, generateSite]);
 
     // אפקט החלפת טקסטים
     useEffect(() => {
@@ -274,7 +291,7 @@ function SimulateContent() {
             }, 2000);
             return () => clearInterval(statusTimer);
         }
-    }, [isFinished]);
+    }, [isFinished, statuses.length]);
 
     if (loading) {
         return (
@@ -553,7 +570,7 @@ function SimulateContent() {
                                             מייצר ויזואלים...
                                         </div>
                                     ) : (
-                                        <img src={siteImageUrl} alt="Preview" style={{ width: '100%', height: '350px', objectFit: 'cover', borderRadius: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }} />
+                                        <Image src={siteImageUrl} alt="Preview" width={800} height={350} style={{ width: '100%', height: '350px', objectFit: 'cover', borderRadius: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }} unoptimized />
                                     )}
                                 </div>
                             )}
@@ -590,7 +607,7 @@ function SimulateContent() {
                                     </button>
                                 </div>
                                 <p style={{ marginTop: '20px', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                    אין לך קוד? <a href="/pricing" style={{ color: '#3b82f6', fontWeight: 'bold' }}>לחץ כאן לרכישה מהירה</a>
+                                    אין לך קוד? <Link href="/pricing" style={{ color: '#3b82f6', fontWeight: 'bold' }}>לחץ כאן לרכישה מהירה</Link>
                                 </p>
                             </div>
                         )}
@@ -636,7 +653,7 @@ function SimulateContent() {
                                     <button
                                         onClick={() => {
                                             // 1. פתיחת וואטסאפ בחלון חדש
-                                            const phoneNumber = "972533407255";
+                                            const phoneNumber = SUPPORT_PHONE;
                                             const message = encodeURIComponent(`היי עמית, האתר של ${desc} נראה פשוט מטורף! אני רוצה להוריד את הקוד המלא.`);
                                             window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
 

@@ -1,0 +1,7 @@
+﻿
+C:\Users\amits\launchpage\app\result\page.jsx
+  78:8  warning  React Hook useCallback has an unnecessary dependency: 'db'. Either exclude it or remove the dependency array. Outer scope values like 'db' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+  94:8  warning  React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array                                                                                                                     react-hooks/exhaustive-deps
+
+Γ£צ 2 problems (0 errors, 2 warnings)
+

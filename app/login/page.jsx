@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heebo } from "next/font/google";
+import Link from "next/link";
 
 const heebo = Heebo({ subsets: ["hebrew"] });
 
@@ -44,7 +45,9 @@ export default function LoginPage() {
 
                 <div style={{ fontSize: "3.5rem", marginBottom: "15px" }}>🚀</div>
                 <h1 style={{ fontSize: "1.9rem", fontWeight: "900", color: "#0f172a", marginBottom: "8px" }}>כניסת משתמשים</h1>
-                <p style={{ color: "#64748b", marginBottom: "35px", fontSize: "1rem" }}>התחבר כדי לנהל את דפי הנחיתה שלך</p>
+                <Link href="/" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
+                    חזרה לדף הבית
+                </Link>
 
                 <form onSubmit={handleLogin}>
                     <div style={{ marginBottom: "20px", textAlign: "right" }}>
@@ -83,7 +86,7 @@ export default function LoginPage() {
                 </form>
 
                 <div style={{ marginTop: "25px", paddingTop: "20px", borderTop: "1px solid #f1f5f9", fontSize: "0.9rem", color: "#94a3b8" }}>
-                    אין לך חשבון עדיין? <a href="/" style={{ color: "#2563EB", fontWeight: "bold", textDecoration: "none" }}>חזור לדף הבית</a>
+                    אין לך חשבון עדיין? <Link href="/" style={{ color: "#2563EB", fontWeight: "bold", textDecoration: "none" }}>חזור לדף הבית</Link>
                 </div>
             </div>
         </div>

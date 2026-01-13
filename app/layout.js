@@ -1,5 +1,6 @@
 import { Heebo, Geist_Mono } from "next/font/google";
 import PremiumLayout from "@/components/PremiumLayout";
+import Script from "next/script";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -35,11 +36,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} ${geistMono.variable} antialiased`}>
       <head>
-        <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
       </head>
       <body suppressHydrationWarning>
         <PremiumLayout>{children}</PremiumLayout>
+        <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
       </body>
     </html>
   );

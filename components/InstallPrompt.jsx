@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export default function InstallPrompt() {
     const [showPrompt, setShowPrompt] = useState(false);
@@ -32,7 +33,7 @@ export default function InstallPrompt() {
         }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/icon.png" alt="Icon" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
+                    <Image src="/icon.png" alt="Icon" width={40} height={40} style={{ borderRadius: '10px' }} />
                     <div>
                         <div style={{ fontWeight: 'bold' }}>LaunchPage AI</div>
                         <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>התקן לגישה מהירה מהמסך בית</div>
@@ -45,8 +46,8 @@ export default function InstallPrompt() {
             </div>
 
             <div style={{ fontSize: '0.9rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px', marginTop: '5px' }}>
-                <p style={{ marginBottom: '8px' }}><strong>באייפון:</strong> לחץ על <span style={{ fontSize: '1.2rem' }}>⎋</span> (שיתוף) ואז <strong>'הוסף למסך הבית'</strong>.</p>
-                <p><strong>באנדרואיד:</strong> לחץ על 3 הנקודות ואז <strong>'התקן אפליקציה'</strong>.</p>
+                <p style={{ marginBottom: '8px' }}><strong>באייפון:</strong> לחץ על <span style={{ fontSize: '1.2rem' }}>⎋</span> (שיתוף) ואז <strong>&apos;הוסף למסך הבית&apos;</strong>.</p>
+                <p><strong>באנדרואיד:</strong> לחץ על 3 הנקודות ואז <strong>&apos;התקן אפליקציה&apos;</strong>.</p>
             </div>
         </div>
     );

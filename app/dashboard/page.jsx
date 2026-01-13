@@ -1,8 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heebo } from "next/font/google";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { VALID_PRO_CODES, SITE_LIMIT } from "@/lib/constants";
 
 const heebo = Heebo({ subsets: ["hebrew"] });
 
@@ -10,24 +15,44 @@ export default function Dashboard() {
     const [sites, setSites] = useState([]);
     const [userName, setUserName] = useState("אורח");
     const [isPro, setIsPro] = useState(false);
+    const [user, setUser] = useState(null);
     const router = useRouter();
 
-    const LIMIT = 3;
+    const LIMIT = SITE_LIMIT;
     const remaining = Math.max(0, LIMIT - sites.length);
     const isLimitReached = sites.length >= LIMIT && !isPro;
 
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            if (currentUser) {
+                // Sync with Firestore
+                const unsubSnap = onSnapshot(doc(db, "users", currentUser.uid), (doc) => {
+                    if (doc.exists() && doc.data().isPro) {
+                        setIsPro(true);
+                        localStorage.setItem("isProUser", "true");
+                    }
+                });
+                return () => unsubSnap();
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
             const savedName = localStorage.getItem("userName") || "אורח";
-            const proStatus = localStorage.getItem("isProUser") === "true" || localStorage.getItem("proCoupon") === "LP-99-PRO";
+            const proStatus = localStorage.getItem("isProUser") === "true" ||
+                VALID_PRO_CODES.includes(localStorage.getItem("proCoupon"));
             const savedSites = JSON.parse(localStorage.getItem("my_ai_sites") || "[]");
 
-            setUserName(savedName);
-            setIsPro(proStatus);
-            setSites(savedSites);
+            setTimeout(() => {
+                setUserName(savedName);
+                if (proStatus) setIsPro(true);
+                setSites(savedSites);
+            }, 0);
         }
-    }, []);
+    }, [isPro]); // Added isPro to satisfy lint and logic
 
     const deleteSite = (id) => {
         if (confirm("האם אתה בטוח שברצונך למחוק את האתר?")) {
@@ -85,6 +110,15 @@ export default function Dashboard() {
                                 </Link>
                             </div>
                         )}
+                        {user && user.photoURL && (
+                            <Image
+                                src={user.photoURL}
+                                width={45}
+                                height={45}
+                                style={{ borderRadius: '50%', border: '2px solid #3b82f6' }}
+                                alt="Profile"
+                            />
+                        )}
                     </div>
 
                     {/* אלמנט עיצובי ברקע */}
@@ -108,88 +142,39 @@ export default function Dashboard() {
                     </button>
                 </div>
 
-                {/* Grid האתרים */}
                 {sites.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '120px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '32px', border: '1px dashed rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
+                    <div style={{
+                        textAlign: 'center', padding: '100px 20px', background: 'rgba(30, 41, 59, 0.3)',
+                        borderRadius: '30px', border: '1px dashed rgba(255,255,255,0.1)'
+                    }}>
                         <div style={{ fontSize: '4rem', marginBottom: '25px' }}>🚀</div>
                         <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>עדיין לא יצרת אתרים</h2>
                         <p style={{ color: '#94a3b8', marginTop: '12px', fontSize: '1.1rem' }}>הגיע הזמן להזניק את העסק שלך עם דף נחיתה ראשון.</p>
-                        <Link href="/create" style={{ display: 'inline-block', marginTop: '30px', textDecoration: 'none' }}>
+                        <Link href="/" style={{ display: 'inline-block', marginTop: '30px', textDecoration: 'none' }}>
                             <span style={{ color: '#60a5fa', fontWeight: 'bold', borderBottom: '2px solid #60a5fa' }}>בוא נתחיל עכשיו ←</span>
                         </Link>
                     </div>
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '25px' }}>
-                        {sites.map((site) => (
-                            <div key={site.id} className="site-card-premium" style={{
-                                background: 'rgba(255,255,255,0.03)', borderRadius: '24px', padding: '30px',
-                                border: '1px solid rgba(255,255,255,0.08)', transition: '0.4s', cursor: 'default',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '25px' }}>
+                        {sites.map(site => (
+                            <div key={site.id} style={{
+                                background: 'rgba(30, 41, 59, 0.4)', borderRadius: '24px', padding: '25px',
+                                border: '1px solid rgba(255,255,255,0.05)', transition: 'transform 0.2s'
                             }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                    <div style={{ width: '45px', height: '45px', background: 'rgba(37, 99, 235, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>🌐</div>
-                                    <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 'bold' }}>
-                                        {new Date(site.createdAt).toLocaleDateString('he-IL')}
-                                    </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{site.title || "אתר AI"}</div>
+                                    <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(site.id).toLocaleDateString('he-IL')}</div>
                                 </div>
-
-                                <h3 style={{ marginBottom: '10px', fontSize: '1.4rem', fontWeight: '900', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{site.title || (site.data?.title) || "אתר ללא שם"}</h3>
-                                <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '25px', height: '40px', overflow: 'hidden' }}>{site.data?.subtitle?.substring(0, 70)}...</p>
-
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button
-                                        onClick={() => editSite(site)}
-                                        style={{
-                                            flex: 1.5, padding: '12px', background: 'rgba(255,255,255,0.05)',
-                                            color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '0.9rem'
-                                        }}
-                                        onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                                        onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                                    >עריכה ✏️</button>
-
-                                    <button
-                                        onClick={() => shareSite(site)}
-                                        style={{
-                                            flex: 1, padding: '12px', background: 'rgba(16, 185, 129, 0.1)',
-                                            color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '0.9rem'
-                                        }}
-                                        onMouseOver={(e) => e.target.style.background = 'rgba(16, 185, 129, 0.2)'}
-                                        onMouseOut={(e) => e.target.style.background = 'rgba(16, 185, 129, 0.1)'}
-                                    >שיתוף 🔗</button>
-
-                                    <button
-                                        onClick={() => deleteSite(site.id)}
-                                        style={{ width: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '12px', cursor: 'pointer', transition: '0.2s' }}
-                                        onMouseOver={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'}
-                                        onMouseOut={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.05)'}
-                                    >🗑️</button>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                    <button onClick={() => editSite(site)} style={{ padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>צפה/ערוך</button>
+                                    <button onClick={() => shareSite(site)} style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', cursor: 'pointer' }}>שתף 🔗</button>
+                                    <button onClick={() => deleteSite(site.id)} style={{ gridColumn: 'span 2', padding: '10px', background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: '0.9rem' }}>מחק אתר 🗑️</button>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-
-                {/* כפתור הדרכה להצלחה (v31) */}
-                <button
-                    onClick={() => alert("🚀 3 טיפים להבאת לקוחות:\n\n1. טיפ הוואטסאפ: שלח את הלינק ל-20 לקוחות עבר שלך עם הצעה מיוחדת. זה הליד הכי זול שתקבל. 💬\n\n2. טיפ הסטורי: תעלה צילום מסך של דף הנחיתה החדש לסטורי עם כפתור 'פרטים נוספים'. אנשים אוהבים לראות דברים חדשים. 📸\n\n3. טיפ SEO המהיר: וודא שהכותרת הראשונה (H1) מכילה את שם העיר שלך. גוגל יסרוק אותך מהר יותר. 🔍")}
-                    style={{
-                        marginTop: '20px', padding: '10px 20px', borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)',
-                        cursor: 'pointer', width: '100%', fontSize: '0.9rem', fontWeight: 'bold'
-                    }}
-                >
-                    איך להביא לקוחות לדף שלי? 💡
-                </button>
-                Riverside, v31
             </div>
-            <style dangerouslySetInnerHTML={{
-                __html: `
-        .site-card-premium:hover {
-            transform: translateY(-8px);
-            border-color: #2563eb !important;
-            background: rgba(255,255,255,0.05) !important;
-        }
-      `}} />
         </div>
     );
 }

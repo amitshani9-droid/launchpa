@@ -3,6 +3,7 @@ import { auth, loginWithGoogle } from '@/lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { signOut } from 'firebase/auth';
 
 export default function Navbar() {
@@ -33,12 +34,12 @@ export default function Navbar() {
                         overflow: 'hidden',
                         border: '1px solid rgba(255, 255, 255, 0.2)'
                     }}>
-                        <img src="/logo.png" style={{
+                        <Image src="/logo.png" style={{
                             width: '140%',
                             height: '140%',
                             objectFit: 'cover',
                             display: 'block'
-                        }} alt="LaunchPage AI Logo" />
+                        }} width={112} height={112} alt="Logo" />
                     </div>
 
                     {/* טקסט מותג יוקרתי */}
@@ -94,9 +95,11 @@ export default function Navbar() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '15px' }}>
                                 {user.photoURL && (
                                     <div style={{ position: 'relative' }}>
-                                        <img
+                                        <Image
                                             src={user.photoURL}
-                                            style={{ width: '45px', height: '45px', borderRadius: '50%', border: '2px solid #3b82f6' }}
+                                            width={45}
+                                            height={45}
+                                            style={{ borderRadius: '50%', border: '2px solid #3b82f6' }}
                                             alt="Profile"
                                         />
                                         <div style={{ position: 'absolute', bottom: 0, right: 0, width: '12px', height: '12px', background: '#10b981', borderRadius: '50%', border: '2px solid #000' }}></div>

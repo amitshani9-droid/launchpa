@@ -1,11 +1,12 @@
 "use client";
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
+import { SUPPORT_PHONE } from '@/lib/constants';
 
 export default function TemplatesPage() {
     const [selectedPreview, setSelectedPreview] = useState(null);
     const [isMagic, setIsMagic] = useState(false);
-    const WHATSAPP_NUMBER = "972533407255";
 
     const templates = [
         {
@@ -76,7 +77,7 @@ export default function TemplatesPage() {
                         }}
                     >
                         <div style={{ position: 'relative', height: '230px' }}>
-                            <img src={template.image} alt={template.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <Image src={template.image} alt={template.title} fill style={{ objectFit: 'cover' }} unoptimized />
                             <div style={{
                                 position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(2,6,23,0.9), transparent)',
                                 display: 'flex', alignItems: 'flex-end', padding: '25px'
@@ -106,7 +107,7 @@ export default function TemplatesPage() {
                             <h3 style={{ color: '#fff', fontSize: '1.5rem', marginBottom: '12px', fontWeight: '800' }}>{template.subtitle}</h3>
                             <p style={{ color: '#94a3b8', fontSize: '1rem', marginBottom: '25px', height: '50px', lineHeight: '1.6' }}>{template.description}</p>
                             <button
-                                onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("היי עמית, אהבתי את תבנית ה-" + template.title + " לעסק שלי!")}`)}
+                                onClick={() => window.open(`https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent("היי עמית, אהבתי את תבנית ה-" + template.title + " לעסק שלי!")}`)}
                                 style={{
                                     width: '100%', padding: '14px', borderRadius: '15px', border: '1px solid rgba(59, 130, 246, 0.3)',
                                     background: 'transparent', color: '#3b82f6', fontWeight: '700', cursor: 'pointer',
@@ -194,7 +195,9 @@ export default function TemplatesPage() {
                                     </section>
 
                                     {/* תמונה גדולה ב-Preview */}
-                                    <img src={selectedPreview.image} style={{ width: '100%', height: '350px', objectFit: 'cover' }} />
+                                    <div style={{ position: 'relative', width: '100%', height: '350px' }}>
+                                        <Image src={selectedPreview.image} fill style={{ objectFit: 'cover' }} alt="Preview" unoptimized />
+                                    </div>
 
                                     {/* Features ב-Preview */}
                                     <section style={{ padding: '40px 30px', display: 'flex', justifyContent: 'space-around', gap: '10px', background: '#fff' }}>
@@ -249,8 +252,9 @@ export default function TemplatesPage() {
                                                         animate={{
                                                             opacity: 0,
                                                             scale: [0, 1.5, 0],
-                                                            x: (Math.random() - 0.5) * 200,
-                                                            y: (Math.random() - 0.5) * 200
+                                                            x: (i % 2 === 0 ? 1 : -1) * (i * 20),
+                                                            y: (i % 3 === 0 ? 1 : -1) * (i * 15),
+                                                            rotate: i * 24
                                                         }}
                                                         transition={{ duration: 0.8, ease: "easeOut" }}
                                                         style={{
@@ -270,7 +274,7 @@ export default function TemplatesPage() {
                                     {isMagic ? "מכין את הקסם..." : "ערוך תבנית זו והתחל לבנות"}
                                 </motion.button>
                                 <button
-                                    onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("היי עמית, אני בתוך ה-Preview של תבנית ה-" + selectedPreview.title + " וזה נראה פשוט מדהים! אני רוצה לרכוש.")}`)}
+                                    onClick={() => window.open(`https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent("היי עמית, אני בתוך ה-Preview של תבנית ה-" + selectedPreview.title + " וזה נראה פשוט מדהים! אני רוצה לרכוש.")}`)}
                                     style={{
                                         background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                                         color: '#fff', padding: '18px 40px', borderRadius: '20px',

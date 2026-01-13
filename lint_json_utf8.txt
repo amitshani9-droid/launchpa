@@ -1,0 +1,27 @@
+﻿
+C:\Users\amits\launchpage\app\dashboard\page.jsx
+  113:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\amits\launchpage\app\login\page.jsx
+  89:41  error  Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+C:\Users\amits\launchpage\app\page.jsx
+  181:38  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\amits\launchpage\app\result\page.jsx
+   94:8  warning  React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array                              react-hooks/exhaustive-deps
+  117:8  warning  React Hook useEffect has missing dependencies: 'params' and 'saveSiteToHistory'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  215:8  warning  React Hook useEffect has a missing dependency: 'siteId'. Either include it or remove the dependency array                            react-hooks/exhaustive-deps
+
+C:\Users\amits\launchpage\app\simulate\page.jsx
+  302:8   warning  React Hook useEffect has a missing dependency: 'statuses.length'. Either include it or remove the dependency array                                                                                                                                                                       react-hooks/exhaustive-deps
+  309:8   warning  React Hook useEffect has a missing dependency: 'generateSite'. Either include it or remove the dependency array                                                                                                                                                                          react-hooks/exhaustive-deps
+  319:8   warning  React Hook useEffect has a missing dependency: 'statuses.length'. Either include it or remove the dependency array                                                                                                                                                                       react-hooks/exhaustive-deps
+  598:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\amits\launchpage\app\templates\page.jsx
+   79:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  197:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+Γ£צ 12 problems (1 error, 11 warnings)
+
