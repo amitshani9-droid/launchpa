@@ -52,6 +52,7 @@ export const UserProvider = ({ children }) => {
                         setUser({
                             uid: currentUser.uid,
                             name: currentUser.displayName,
+                            photoURL: currentUser.photoURL,
                             isPro: false,
                             loading: false
                         });

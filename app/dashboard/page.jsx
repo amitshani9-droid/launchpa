@@ -4,9 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heebo } from "next/font/google";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { VALID_PRO_CODES, SITE_LIMIT } from "@/lib/constants";
 import { useUser } from "@/context/UserContext";
 
@@ -15,45 +12,29 @@ const heebo = Heebo({ subsets: ["hebrew"] });
 export default function Dashboard() {
     const [sites, setSites] = useState([]);
     const [userName, setUserName] = useState("אורח");
-    const [isPro, setIsPro] = useState(false);
-    const [user, setUser] = useState(null);
     const router = useRouter();
-    const { openUpgradeModal } = useUser();
+    const { user, isPro, openUpgradeModal, loading } = useUser();
+
+    // Set user name from context or local storage fallback
+    useEffect(() => {
+        if (user && user.name) {
+            setUserName(user.name);
+        } else {
+            const saved = localStorage.getItem("userName");
+            if (saved) setUserName(saved);
+        }
+    }, [user]);
 
     const LIMIT = SITE_LIMIT;
     const remaining = Math.max(0, LIMIT - sites.length);
     const isLimitReached = sites.length >= LIMIT && !isPro;
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-            if (currentUser) {
-                // Sync with Firestore
-                const unsubSnap = onSnapshot(doc(db, "users", currentUser.uid), (doc) => {
-                    if (doc.exists() && doc.data().isPro) {
-                        setIsPro(true);
-                        localStorage.setItem("isPro", "true");
-                    }
-                });
-                return () => unsubSnap();
-            }
-        });
-        return () => unsubscribe();
-    }, []);
-
-    useEffect(() => {
         if (typeof window !== "undefined") {
-            const savedName = localStorage.getItem("userName") || "אורח";
-            const proStatus = localStorage.getItem("isPro") === "true";
             const savedSites = JSON.parse(localStorage.getItem("my_ai_sites") || "[]");
-
-            setTimeout(() => {
-                setUserName(savedName);
-                if (proStatus) setIsPro(true);
-                setSites(savedSites);
-            }, 0);
+            setSites(savedSites);
         }
-    }, [isPro]);
+    }, []);
 
     const deleteSite = (id) => {
         if (confirm("האם אתה בטוח שברצונך למחוק את האתר?")) {
