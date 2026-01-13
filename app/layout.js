@@ -40,7 +40,6 @@ export default function RootLayout({ children }) {
       </head>
       <body suppressHydrationWarning>
         <PremiumLayout>{children}</PremiumLayout>
-        <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
       </body>
     </html>
   );

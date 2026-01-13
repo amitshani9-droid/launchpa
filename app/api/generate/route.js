@@ -3,7 +3,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+let genAI = null;
+const getGenAI = () => {
+  if (!genAI) {
+    if (!process.env.GOOGLE_GEMINI_API_KEY) {
+      throw new Error("Missing GOOGLE_GEMINI_API_KEY");
+    }
+    genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+  }
+  return genAI;
+};
 
 export async function POST(req) {
   const startTime = Date.now(); // תזמון התחלה
@@ -38,7 +47,8 @@ export async function POST(req) {
     console.log("🚀 [Gemini API] התחלת יצירת אתר עבור:");
     console.log(`📝 פרומפט: "${prompt}" | סגנון: "${theme}" | עסקה: "${businessName || 'לא צוין'}" | לוגו: ${logoUrl ? "כן" : "לא"}`);
 
-    const model = genAI.getGenerativeModel({
+    const aiInstance = getGenAI();
+    const model = aiInstance.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction: "You are an Expert Web Designer, Conversion Copywriter, and Landing Page Specialist. Your goal is to generate structured marketing data for high-quality landing pages. You must think in terms of conversion optimization, marketing psychology, and modern structure."
     });

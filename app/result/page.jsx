@@ -292,6 +292,23 @@ function ResultContent() {
                     style={{ flex: 1, position: 'relative' }}
                     onContextMenu={(e) => !isPro && e.preventDefault()} // חוסם קליק ימני בחינמי
                 >
+                    {!isPro && (
+                        <div style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            padding: '15px',
+                            borderRadius: '12px',
+                            marginBottom: '20px',
+                            textAlign: 'center',
+                            color: '#fff'
+                        }}>
+                            <span style={{ fontSize: '1.2rem', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>👀 זהו דף תצוגה בלבד</span>
+                            <span style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+                                כדי להשתמש בדף הזה בפועל ולהעלות אותו לאתר שלך – יש לשדרג לגרסת PRO.
+                            </span>
+                        </div>
+                    )}
+
                     <div style={{
                         filter: (isPro && validationErrors.length === 0) ? 'none' : 'blur(10px)',
                         transition: 'filter 0.5s ease',
@@ -305,70 +322,87 @@ function ResultContent() {
                         <div style={overlayStyle}>
                             <div style={blurStyle} />
                             <button onClick={() => setIsUpgradeModalOpen(true)} style={unlockBtnFloating}>
-                                🔓 שחרר את נעילת האתר והורד קוד
+                                🔒 קבל קובץ מוכן לשימוש
                             </button>
                         </div>
                     )}
                 </div>
 
                 {/* סרגל צד */}
-                <div style={sidebarStyle}>
+                <div style={sidebarStyle} className="hidden md:block">
                     <h3 style={{ marginBottom: "15px" }}>אפשרויות</h3>
                     <button onClick={() => isPro ? handleDownload() : setIsUpgradeModalOpen(true)} style={sideBtn}>
-                        הורדת ZIP {isPro ? '✅' : '🔒'}
+                        {isPro ? 'הורדת ZIP ✅' : '🔒 קבל קובץ מוכן לשימוש'}
                     </button>
+                    {!isPro && (
+                        <button onClick={() => setIsUpgradeModalOpen(true)} style={sideBtn}>
+                            🔒 שפר את הדף והגדל המרות
+                        </button>
+                    )}
                     <button onClick={shareSite} style={sideBtn}>שתף בוואטסאפ 💬</button>
 
                     {!isPro && (
                         <button onClick={() => setIsUpgradeModalOpen(true)} style={upgradeBtnSide}>
-                            שדרג ל-PRO 🚀
+                            שדרג וקבל את הדף 🚀
                         </button>
                     )}
                 </div>
             </div>
 
+            {/* Mobile Sticky CTA */}
+            {!isPro && (
+                <div className="md:hidden" style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0,
+                    padding: '20px', background: 'linear-gradient(to top, #05070a 80%, transparent)',
+                    zIndex: 1000
+                }}>
+                    <button onClick={() => setIsUpgradeModalOpen(true)} style={checkAccessBtnStyle}>
+                        🔒 קבל את הדף הזה
+                    </button>
+                </div>
+            )}
+
             {/* מודאל השדרוג (בדיקת VIP) */}
             {isUpgradeModalOpen && (
                 <div style={modalOverlay}>
                     <div style={modalContent}>
-                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '10px' }}>🚀 שדרג ל-PRO</h2>
+                        <h2 style={{ fontSize: '2rem', color: '#fff', marginBottom: '15px' }}>🚀 הדף הזה מוכן לשימוש</h2>
+                        <p style={{ color: '#94a3b8', marginBottom: '25px', fontSize: '1.1rem' }}>
+                            בשדרוג לגרסת PRO תקבל דף נחיתה מוכן, כולל קוד מלא ושיפור טקסט חכם.
+                        </p>
+
+                        <div style={{ textAlign: 'right', display: 'inline-block', marginBottom: '30px' }}>
+                            <div style={bulletStyle}>✔️ דף מותאם אישית לעסק שלך</div>
+                            <div style={bulletStyle}>✔️ קובץ מוכן להעלאה</div>
+                            <div style={bulletStyle}>✔️ שיפור טקסט עם AI</div>
+                            <div style={bulletStyle}>✔️ שימוש מיידי, בלי הגבלות</div>
+                        </div>
 
                         {user ? (
-                            // אם המשתמש מחובר - נציג לו את כפתור הבדיקה
                             <div style={{ textAlign: 'center' }}>
-                                <Link href="/" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
-                                    חזרה לדף הבית
-                                </Link>
-                                <p style={{ color: '#94a3b8', marginBottom: '15px' }}>
-                                    מחובר כ: <span style={{ color: '#3b82f6' }}>{user.email}</span>
-                                </p>
-
                                 <button
-                                    onClick={handleCheckAccess} // הקריאה לפונקציה ששלחת לי!
+                                    onClick={upgradeViaWhatsapp}
                                     style={checkAccessBtnStyle}
                                 >
-                                    ✅ בדוק אישור גישה (Unlock)
+                                    שדרג וקבל את הדף
                                 </button>
 
-                                <div style={{ marginTop: '20px', borderTop: '1px solid #334155', paddingTop: '20px' }}>
-                                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '10px' }}>עדיין לא שילמת?</p>
-                                    <button onClick={upgradeViaWhatsapp} style={whatsappBtnSimple}>
-                                        💬 שלח הודעה לאישור התשלום
+                                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <button onClick={handleCheckAccess} style={secondaryBtnStyle}>
+                                        כבר שילמתי? בדוק גישה ✅
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            // אם המשתמש לא מחובר - נבקש ממנו להתחבר קודם
                             <div style={{ textAlign: 'center' }}>
-                                <p style={{ color: '#94a3b8', marginBottom: '20px' }}>יש להתחבר כדי שנוכל לבדוק את הגישה שלך.</p>
                                 <button onClick={handleSignIn} style={googleBtnStyle}>
-                                    התחבר עם Google
+                                    התחבר עם Google לשדרוג
                                 </button>
                             </div>
                         )}
 
                         <button onClick={() => setIsUpgradeModalOpen(false)} style={closeBtnStyle}>
-                            אולי מאוחר יותר
+                            אולי אחר כך
                         </button>
                     </div>
                 </div>
@@ -459,8 +493,28 @@ const closeBtnStyle = {
     color: '#94a3b8',
     marginTop: '20px',
     cursor: 'pointer',
-    fontSize: '0.9rem',
-    textDecoration: 'underline'
+    fontSize: '0.9rem'
+};
+
+const bulletStyle = {
+    color: '#fff',
+    marginBottom: '12px',
+    fontSize: '1.05rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+};
+
+const secondaryBtnStyle = {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#94a3b8',
+    width: '100%',
+    padding: '12px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontSize: '0.95rem',
+    fontWeight: '600'
 };
 
 // --- End of Page ---
