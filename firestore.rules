@@ -9,8 +9,8 @@ service cloud.firestore {
       allow update, delete: if request.auth != null; 
     }
     
-    // Users: strictly own data
-    match /users/{userId} {
+    // Users: strictly own data + their subcollections (sites)
+    match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
