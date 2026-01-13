@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
-export default function SimulatePage() {
+function SimulateContent() {
     const searchParams = useSearchParams();
     const [siteData, setSiteData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -705,5 +705,20 @@ export default function SimulatePage() {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+export default function SimulatePage() {
+    return (
+        <Suspense fallback={
+            <div style={{
+                minHeight: '100vh', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', background: '#020617', color: '#fff'
+            }}>
+                <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>מתכוננים לשיגור... 🚀</p>
+            </div>
+        }>
+            <SimulateContent />
+        </Suspense>
     );
 }
