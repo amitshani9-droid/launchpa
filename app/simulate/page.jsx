@@ -6,7 +6,9 @@ import RocketPreview from "@/components/RocketPreview";
 import { useUser } from "@/context/UserContext";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { renderHtml } from "@/lib/landing/renderHtml";
+
 
 function SimulateContent() {
     const params = useSearchParams();
@@ -35,32 +37,81 @@ function SimulateContent() {
     }, [user, setProStatus]);
 
     useEffect(() => {
-        let interval;
-        if (progress < 100) {
-            interval = setInterval(() => {
-                setProgress(prev => Math.min(prev + Math.random() * 15, 100));
-            }, 600);
-        } else {
-            setLoading(false);
-        }
-        return () => clearInterval(interval);
-    }, [progress]);
+        let isMounted = true;
 
-    useEffect(() => {
-        async function fetchSite() {
-            if (siteId) {
-                try {
-                    const docSnap = await getDoc(doc(db, "sites", siteId));
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        setSiteData(data);
-                    }
-                } catch (e) {
-                    console.error("Error fetching site:", e);
+        async function initSimulation() {
+            if (!siteId) return;
+
+            try {
+                // 1. Fetch initial prompt data
+                const siteRef = doc(db, "sites", siteId);
+                const docSnap = await getDoc(siteRef);
+
+                if (!docSnap.exists()) {
+                    console.error("Site not found");
+                    return;
                 }
+
+                const initialData = docSnap.data();
+
+                // If already generated, just show it
+                if (initialData.content && initialData.html) {
+                    setSiteData(initialData);
+                    setProgress(100);
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Not generated yet? Call AI
+                // Start fake progress
+                let currentProgress = 0;
+                const progressInterval = setInterval(() => {
+                    currentProgress += Math.random() * 10;
+                    if (currentProgress > 90) currentProgress = 90;
+                    if (isMounted) setProgress(currentProgress);
+                }, 800);
+
+                const res = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ siteId }) // API handles fetching prompt from Firestore
+                });
+
+                const json = await res.json();
+
+                clearInterval(progressInterval);
+
+                if (json && !json.error) {
+                    const html = renderHtml(json);
+                    const fullData = { ...initialData, content: json, html };
+
+                    // Save back to DB
+                    await updateDoc(siteRef, {
+                        content: json,
+                        html: html,
+                        status: 'completed'
+                    });
+
+                    // Save to LocalStorage for "Edit" flow
+                    localStorage.setItem("generatedSite", JSON.stringify(fullData));
+
+                    if (isMounted) {
+                        setSiteData(fullData);
+                        setProgress(100);
+                        setTimeout(() => setLoading(false), 500);
+                    }
+                } else {
+                    console.error("Generation failed:", json.error);
+                }
+
+            } catch (err) {
+                console.error("Simulation error:", err);
             }
         }
-        fetchSite();
+
+        initSimulation();
+
+        return () => { isMounted = false; };
     }, [siteId]);
 
     const handleUpgradeTrigger = () => {

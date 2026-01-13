@@ -93,7 +93,6 @@ export default function RocketPreview({ data }) {
 
                 {/* Preview Container */}
                 <div
-                    dir="rtl"
                     style={{
                         background: "#ffffff",
                         color: "#000000",
@@ -104,12 +103,22 @@ export default function RocketPreview({ data }) {
                         maxWidth: "1000px",
                         margin: "0 auto",
                         transition: "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)",
-                        overflowY: "auto",
-                        maxHeight: "80vh",
-                        textAlign: "right"
+                        height: "80vh",
+                        overflow: "hidden", // Iframe handles scroll
+                        position: 'relative'
                     }}
                 >
-                    <div dangerouslySetInnerHTML={{ __html: data.html }} />
+                    <iframe
+                        srcDoc={data.html}
+                        title="Site Preview"
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            border: "none",
+                            borderRadius: "24px",
+                            background: "white"
+                        }}
+                    />
                 </div>
             </div>
         );
