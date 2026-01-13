@@ -41,33 +41,33 @@ function ResultContent() {
             console.error("שגיאה בהתחברות:", error);
         }
     };
-    // --- לוגיקת בדיקת הגישה (Firebase VIP) ---
     const handleCheckAccess = async () => {
+        console.log("Checking access for user:", user?.email);
+        console.log("User UID:", user?.uid);
+
         if (!user) {
-            alert("אנא התחבר עם גוגל קודם");
-            handleSignIn();
+            console.error("No user found in state!");
             return;
         }
 
         try {
-            // בודק ב-Firebase אם למשתמש הזה יש הרשאת PRO
-            const userDoc = await getDoc(doc(db, "users", user.uid));
+            const userRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userRef);
 
-            if (userDoc.exists() && userDoc.data().isPro) {
-                setIsPro(true);
-                setIsUpgradeModalOpen(false);
-                setShowConfetti(true);
-                handleDownload();
-                alert("הגישה אושרה! האתר שלך פתוח.");
+            if (userSnap.exists()) {
+                console.log("Document data found:", userSnap.data());
+                if (userSnap.data().isPro === true) {
+                    console.log("User is PRO! Unlocking...");
+                    setIsPro(true);
+                    setIsUpgradeModalOpen(false);
+                } else {
+                    console.log("User is NOT PRO in Database.");
+                }
             } else {
-                alert(`האימייל ${user.email} עדיין לא מאושר כ-PRO. שלח הודעה לעמית בוואטסאפ לאישור.`);
-                // פותח וואטסאפ עם האימייל שלו כבר בפנים כדי שיהיה לך קל לאשר אותו
-                const msg = encodeURIComponent(`היי עמית, שילמתי עבור PRO. האימייל שלי הוא: ${user.email}`);
-                window.open(`https://wa.me/972533407255?text=${msg}`, "_blank");
+                console.error("No such document in Firestore for UID:", user.uid);
             }
-        } catch (e) {
-            console.error(e);
-            alert("שגיאה באימות הגישה.");
+        } catch (error) {
+            console.error("Firestore Error:", error);
         }
     };
 
@@ -242,24 +242,41 @@ function ResultContent() {
             {isUpgradeModalOpen && (
                 <div style={modalOverlay}>
                     <div style={modalContent}>
-                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '10px' }}>🔐 גישת PRO בלבד</h2>
-                        <p style={{ color: '#94a3b8', marginBottom: '20px' }}>
-                            {user ? `מחובר כ: ${user.email}` : "יש להתחבר כדי לקבל גישה"}
-                        </p>
+                        <h2 style={{ fontSize: '1.8rem', color: '#fff', marginBottom: '10px' }}>� שדרג ל-PRO</h2>
 
-                        <button onClick={handleCheckAccess} style={checkAccessBtn}>
-                            🚀 בדוק אם הגישה שלי אושרה
-                        </button>
+                        {user ? (
+                            // אם המשתמש מחובר - נציג לו את כפתור הבדיקה
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ color: '#94a3b8', marginBottom: '15px' }}>
+                                    מחובר כ: <span style={{ color: '#3b82f6' }}>{user.email}</span>
+                                </p>
 
-                        <div style={{ marginTop: '20px', borderTop: '1px solid #334155', paddingTop: '20px' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>טרם שילמת? שלח הודעה לאישור מיידי:</p>
-                            <button onClick={upgradeViaWhatsapp} style={whatsappBtnSimple}>
-                                💬 דבר עם עמית בוואטסאפ
-                            </button>
-                        </div>
+                                <button
+                                    onClick={handleCheckAccess} // הקריאה לפונקציה ששלחת לי!
+                                    style={checkAccessBtnStyle}
+                                >
+                                    ✅ בדוק אישור גישה (Unlock)
+                                </button>
 
-                        <button onClick={() => setIsUpgradeModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', marginTop: '10px', cursor: 'pointer' }}>
-                            סגור
+                                <div style={{ marginTop: '20px', borderTop: '1px solid #334155', paddingTop: '20px' }}>
+                                    <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '10px' }}>עדיין לא שילמת?</p>
+                                    <button onClick={upgradeViaWhatsapp} style={whatsappBtnSimple}>
+                                        💬 שלח הודעה לאישור התשלום
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            // אם המשתמש לא מחובר - נבקש ממנו להתחבר קודם
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ color: '#94a3b8', marginBottom: '20px' }}>יש להתחבר כדי שנוכל לבדוק את הגישה שלך.</p>
+                                <button onClick={handleSignIn} style={googleBtnStyle}>
+                                    התחבר עם Google
+                                </button>
+                            </div>
+                        )}
+
+                        <button onClick={() => setIsUpgradeModalOpen(false)} style={closeBtnStyle}>
+                            אולי מאוחר יותר
                         </button>
                     </div>
                 </div>
@@ -277,10 +294,82 @@ const unlockBtnFloating = { position: 'relative', zIndex: 20, padding: '15px 30p
 const sidebarStyle = { width: "300px", background: "rgba(255,255,255,0.05)", borderRadius: "20px", padding: "20px", border: "1px solid rgba(255,255,255,0.1)", height: "fit-content" };
 const sideBtn = { width: "100%", padding: "14px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", marginBottom: "12px", cursor: "pointer" };
 const upgradeBtnSide = { width: "100%", padding: "14px", background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: "12px", color: "white", fontWeight: "bold", cursor: "pointer" };
-const modalOverlay = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalContent = { background: '#0f172a', padding: '40px', borderRadius: '24px', border: '1px solid #334155', width: '90%', maxWidth: '450px', textAlign: 'center' };
-const whatsappBtnSimple = { background: 'transparent', border: '1px solid #22c55e', color: '#22c55e', width: '100%', padding: '10px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginTop: '10px' };
-const checkAccessBtn = { background: '#3b82f6', color: 'white', width: '100%', padding: '15px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)' };
+const modalOverlay = {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    backdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px'
+};
+
+const modalContent = {
+    background: '#1e293b',
+    padding: '35px',
+    borderRadius: '24px',
+    textAlign: 'center',
+    color: 'white',
+    maxWidth: '450px',
+    width: '100%',
+    border: '2px solid #3b82f6',
+    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)'
+};
+
+const checkAccessBtnStyle = {
+    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+    color: 'white',
+    width: '100%',
+    padding: '16px',
+    borderRadius: '12px',
+    fontWeight: 'bold',
+    fontSize: '1.1rem',
+    cursor: 'pointer',
+    border: 'none',
+    marginTop: '10px',
+    boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)',
+    transition: 'transform 0.2s'
+};
+
+const googleBtnStyle = {
+    background: '#fff',
+    color: '#1f2937',
+    width: '100%',
+    padding: '14px',
+    borderRadius: '12px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    border: '1px solid #e5e7eb',
+    fontSize: '1rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px'
+};
+
+const whatsappBtnSimple = {
+    background: 'transparent',
+    color: '#4ade80',
+    border: '1px solid #4ade80',
+    width: '100%',
+    padding: '12px',
+    borderRadius: '12px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginTop: '10px'
+};
+
+const closeBtnStyle = {
+    background: 'transparent',
+    border: 'none',
+    color: '#94a3b8',
+    marginTop: '20px',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    textDecoration: 'underline'
+};
 
 // --- Helpers (גנרטורים של קוד) ---
 function generateHTML(data) {
