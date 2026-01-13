@@ -3,6 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import RocketPreview from "@/components/RocketPreview";
+import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -112,15 +114,51 @@ function SimulateContent() {
         });
     };
 
+    // ---------------------------------------------------------
+    // בלוק טיפול בשגיאות (Error UI)
+    // ---------------------------------------------------------
     if (error) {
         return (
-            <div style={{ ...containerStyle, justifyContent: 'center' }}>
-                <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>⚠️ שגיאה</h2>
-                <p style={{ color: '#ef4444', marginBottom: '30px', fontSize: '1.2rem' }}>{error}</p>
-                <button onClick={() => router.push('/')} style={primaryBtn}>חזרה להתחלה</button>
+            <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-4" style={{ direction: 'rtl' }}>
+                <div className="max-w-md w-full bg-[#0f172a] border border-white/10 rounded-2xl p-8 text-center shadow-2xl">
+
+                    {/* אייקון שגיאה מונפש */}
+                    <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <AlertTriangle className="w-10 h-10 text-red-500" />
+                    </div>
+
+                    <h2 className="text-2xl font-bold mb-3">אופס! נתקלנו בבעיה קטנה</h2>
+
+                    {/* הצגת הודעת השגיאה הספציפית */}
+                    <p className="text-gray-400 mb-8 leading-relaxed">
+                        {error.includes("Rate Limit") || error.includes("עמוסה")
+                            ? "המוח של ה-AI חושב ממש מהר כרגע וצריך הפסקה קצרה. אנא המתן דקה ונסה שוב."
+                            : error}
+                    </p>
+
+                    <div className="flex flex-col gap-3">
+                        {/* כפתור נסה שוב */}
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            נסה שוב
+                        </button>
+
+                        {/* כפתור חזרה לבית */}
+                        <Link href="/" className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all">
+                            <ArrowLeft className="w-4 h-4" />
+                            חזור לדף הבית
+                        </Link>
+                    </div>
+                </div>
             </div>
         );
     }
+    // ---------------------------------------------------------
+    // סוף בלוק שגיאות
+    // ---------------------------------------------------------
 
     if (loading) {
         return (
