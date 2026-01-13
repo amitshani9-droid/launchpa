@@ -232,6 +232,61 @@ export default function RocketPreview({ data }) {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Steps / Process Section */}
+                        {data.steps && (
+                            <div style={{ background: '#f8fafc', padding: '80px 20px', textAlign: 'center' }}>
+                                <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '40px', color: '#1e293b' }}>איך זה עובד?</h2>
+                                <div style={{ display: 'flex', flexDirection: viewMode === 'mobile' ? 'column' : 'row', gap: '30px', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto' }}>
+                                    {data.steps.map((step, i) => (
+                                        <div key={i} style={{ flex: 1, position: 'relative' }}>
+                                            <div style={{ width: '50px', height: '50px', background: data.style?.primaryColor || '#6366f1', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold', margin: '0 auto 20px' }}>{i + 1}</div>
+                                            <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '10px', color: '#334155' }}>{step.title}</h4>
+                                            <p style={{ color: '#64748b' }}>{step.desc}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Testimonials Section */}
+                        {data.testimonials && (
+                            <div style={{ padding: '80px 20px', background: 'white' }}>
+                                <h2 style={{ textAlign: 'center', fontSize: '2.5rem', fontWeight: '800', marginBottom: '50px', color: '#1e293b' }}>מה לקוחות אומרים a</h2>
+                                <div style={{ display: 'grid', gridTemplateColumns: viewMode === 'mobile' ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', maxWidth: '1000px', margin: '0 auto' }}>
+                                    {data.testimonials.map((t, i) => (
+                                        <div key={i} style={{ padding: '30px', background: '#f1f5f9', borderRadius: '20px', borderRight: `4px solid ${data.style?.primaryColor || '#6366f1'}` }}>
+                                            <p style={{ fontSize: '1.1rem', color: '#334155', marginBottom: '20px', fontStyle: 'italic' }}>"{t.text}"</p>
+                                            <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{t.name}</div>
+                                            <div style={{ fontSize: '0.9rem', color: '#64748b' }}>{t.role}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* FAQ Section */}
+                        {data.faq && (
+                            <div style={{ padding: '80px 20px', background: '#f8fafc', textAlign: 'right' }}>
+                                <h2 style={{ textAlign: 'center', fontSize: '2.5rem', fontWeight: '800', marginBottom: '50px', color: '#1e293b' }}>שאלות נפוצות</h2>
+                                <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    {data.faq.map((item, i) => (
+                                        <div key={i} style={{ background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 5px 15px rgba(0,0,0,0.03)' }}>
+                                            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '10px', color: '#1e293b' }}>{item.q}</h4>
+                                            <p style={{ color: '#475569' }}>{item.a}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Final CTA */}
+                        <div style={{ padding: '100px 20px', textAlign: 'center', background: `linear-gradient(135deg, ${data.style?.primaryColor || '#2563eb'}, ${data.style?.secondaryColor || '#1e40af'})`, color: 'white' }}>
+                            <h2 style={{ fontSize: '3rem', fontWeight: '900', marginBottom: '20px' }}>מוכן להתחיל?</h2>
+                            <button style={{ background: 'white', color: data.style?.primaryColor || '#2563eb', padding: '20px 50px', borderRadius: '50px', fontSize: '1.25rem', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+                                {data.cta_button || "התחל עכשיו בחינם"}
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     // --- LEGACY LAYOUT (Generated Results) ---

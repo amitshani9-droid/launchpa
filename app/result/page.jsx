@@ -21,50 +21,49 @@ function ResultContent() {
     const prompt = params.get("p");
     const siteId = params.get("id");
 
-    const { isPro, setProStatus, openUpgradeModal } = useUser();
+    // Use the single source of truth from Context
+    const { uid, isPro, loading: authLoading, openUpgradeModal } = useUser();
+
+    // Local page state
     const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [pageLoading, setPageLoading] = useState(true);
     const [error, setError] = useState("");
     const [validationErrors, setValidationErrors] = useState([]);
-    const [user, setUser] = useState(null);
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser || null);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    useEffect(() => {
-        if (!user) return;
-        const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
-            if (doc.data()?.isPro) {
-                setProStatus(true);
-            }
-        });
-        return () => unsub();
-    }, [user, setProStatus]);
+    // We don't need local auth listeners anymore, UserContext handles it.
 
     useEffect(() => {
         async function loadData() {
-            setLoading(true);
+            if (authLoading) return; // Wait for auth to resolve
+
+            setPageLoading(true);
+
+            // 1. Try Local Preview (fastest)
             if (params.get('local') === 'true') {
                 const localData = localStorage.getItem("generatedSite");
                 if (localData) {
                     setData(JSON.parse(localData));
-                    setLoading(false);
+                    setPageLoading(false);
                     return;
                 }
             }
-            if (siteId && user) {
+
+            // 2. Try Fetching from Firestore (if user owned)
+            if (siteId && uid) {
                 try {
-                    const docSnap = await getDoc(doc(db, "users", user.uid, "sites", siteId));
-                    if (docSnap.exists()) setData(docSnap.data().content);
+                    const docSnap = await getDoc(doc(db, "users", uid, "sites", siteId));
+                    if (docSnap.exists()) {
+                        setData(docSnap.data().content);
+                    } else {
+                        // Fallback: maybe public entry? For now error.
+                        console.error("Site not found or access denied");
+                    }
                 } catch (e) { console.error("Error loading site:", e); }
-                finally { setLoading(false); }
+                finally { setPageLoading(false); }
                 return;
             }
 
+            // 3. Generate New (if prompt provided)
             if (prompt) {
                 try {
                     const res = await fetch("/api/generate", {
@@ -78,11 +77,14 @@ function ResultContent() {
                         setData({ ...json, html });
                     } else { setError(json.error || "שגיאה ביצירת הדף"); }
                 } catch (err) { setError("שגיאה ביצירת הדף"); }
-                finally { setLoading(false); }
+                finally { setPageLoading(false); }
+            } else {
+                setPageLoading(false);
             }
         }
-        if (user || params.get('local') || prompt) loadData();
-    }, [prompt, params, user, siteId]);
+
+        loadData();
+    }, [prompt, params, uid, siteId, authLoading]);
 
     useEffect(() => {
         if (data?.html) {
@@ -92,6 +94,10 @@ function ResultContent() {
     }, [data]);
 
     const handleDownload = async () => {
+        if (!isPro) {
+            handleUpgradeTrigger();
+            return;
+        }
         if (data?.html) {
             await downloadStandaloneSite(data.html, data.businessName || "My Landing Page");
         }
@@ -104,7 +110,7 @@ function ResultContent() {
         });
     };
 
-    if (loading) return <div style={fullPageCenter}>מייצר את הדף שלך... 🚀</div>;
+    if (authLoading || pageLoading) return <div style={fullPageCenter}>מייצר את הדף שלך... 🚀</div>;
 
     if (validationErrors.length > 0) {
         return (
@@ -122,7 +128,7 @@ function ResultContent() {
         );
     }
 
-    if (!loading && !data) {
+    if (!pageLoading && !data) {
         return (
             <div style={errorScreenStyle}>
                 <h2>אין דף להצגה</h2>

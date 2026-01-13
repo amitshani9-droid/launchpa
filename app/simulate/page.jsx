@@ -16,25 +16,7 @@ function SimulateContent() {
     const siteId = params.get("id");
 
     const { isPro, setProStatus, openUpgradeModal } = useUser();
-    const [progress, setProgress] = useState(0);
-    const [siteData, setSiteData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser || null);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    useEffect(() => {
-        if (!user) return;
-        const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
-            if (doc.data()?.isPro) setProStatus(true);
-        });
-        return () => unsub();
-    }, [user, setProStatus]);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -48,7 +30,8 @@ function SimulateContent() {
                 const docSnap = await getDoc(siteRef);
 
                 if (!docSnap.exists()) {
-                    console.error("Site not found");
+                    if (isMounted) setError("האתר לא נמצא במערכת");
+                    setLoading(false);
                     return;
                 }
 
@@ -56,9 +39,11 @@ function SimulateContent() {
 
                 // If already generated, just show it
                 if (initialData.content && initialData.html) {
-                    setSiteData(initialData);
-                    setProgress(100);
-                    setLoading(false);
+                    if (isMounted) {
+                        setSiteData(initialData);
+                        setProgress(100);
+                        setLoading(false);
+                    }
                     return;
                 }
 
@@ -78,7 +63,6 @@ function SimulateContent() {
                 });
 
                 const json = await res.json();
-
                 clearInterval(progressInterval);
 
                 if (json && !json.error) {
@@ -98,14 +82,18 @@ function SimulateContent() {
                     if (isMounted) {
                         setSiteData(fullData);
                         setProgress(100);
-                        setTimeout(() => setLoading(false), 500);
+                        setLoading(false);
                     }
                 } else {
                     console.error("Generation failed:", json.error);
+                    if (isMounted) setError(json.error || "שגיאה ביצירת האתר");
+                    if (isMounted) setLoading(false);
                 }
 
             } catch (err) {
                 console.error("Simulation error:", err);
+                if (isMounted) setError("שגיאה בתקשורת עם השרת");
+                if (isMounted) setLoading(false);
             }
         }
 
@@ -120,6 +108,16 @@ function SimulateContent() {
             goal: "הורדת קוד מקור מלא"
         });
     };
+
+    if (error) {
+        return (
+            <div style={{ ...containerStyle, justifyContent: 'center' }}>
+                <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>⚠️ שגיאה</h2>
+                <p style={{ color: '#ef4444', marginBottom: '30px', fontSize: '1.2rem' }}>{error}</p>
+                <button onClick={() => router.push('/')} style={primaryBtn}>חזרה להתחלה</button>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

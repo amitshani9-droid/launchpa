@@ -41,6 +41,7 @@ export default function UpgradeModal({ isOpen, onClose, businessData }) {
                     await updateDoc(userRef, { isPro: true, activatedCoupon: normalized });
                 } catch (e) {
                     console.error("Error updating Firestore:", e);
+                    alert("שים לב: השדרוג נקלט מקומית, אך הייתה בעיה בשמירה לענן. אנא וודא חיבור לאינטרנט.");
                 }
             }
         } else {
@@ -81,14 +82,14 @@ export default function UpgradeModal({ isOpen, onClose, businessData }) {
 
                                 <div style={sectionStyle}>
                                     <button onClick={handleUpgradeViaWhatsapp} style={primaryBtnStyle}>
-                                        <span style={{ fontSize: '1.2rem' }}>💎</span> קבל קוד PRO והפעל עכשיו
+                                        <span style={{ fontSize: '1.2rem' }}>💎</span> קבל קוד PRO בוואטסאפ
                                     </button>
                                     <p style={priceSubtextStyle}>₪49 · תשלום חד־פעמי · קוד אישי</p>
                                 </div>
 
                                 <div style={dividerStyle}>
                                     <button onClick={() => setShowCodeInput(!showCodeInput)} style={toggleCodeLinkStyle}>
-                                        {showCodeInput ? "הסתר שדה קוד" : "כבר יש לי קוד"}
+                                        {showCodeInput ? "הסתר שדה קוד" : "יש לי קוד"}
                                     </button>
                                 </div>
 
@@ -103,7 +104,7 @@ export default function UpgradeModal({ isOpen, onClose, businessData }) {
                                             <div style={inputContainerStyle}>
                                                 <input
                                                     type="text"
-                                                    placeholder="הכנס קוד PRO שקיבלת"
+                                                    placeholder="XXXX-XXXX"
                                                     value={coupon}
                                                     onChange={(e) => setCoupon(e.target.value)}
                                                     style={inputStyle}

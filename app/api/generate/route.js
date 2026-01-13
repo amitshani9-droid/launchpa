@@ -47,61 +47,62 @@ export async function POST(req) {
     console.log("🚀 [Gemini API] התחלת יצירת אתר עבור:");
     console.log(`📝 פרומפט: "${prompt}" | סגנון: "${theme}" | עסקה: "${businessName || 'לא צוין'}" | לוגו: ${logoUrl ? "כן" : "לא"}`);
 
-    const aiInstance = getGenAI();
     const model = aiInstance.getGenerativeModel({
       model: "gemini-1.5-flash",
-      systemInstruction: `You are an elite high-ticket web designer and conversion copywriter.
-      Your goal is to design a "$5000 Landing Page" in structured JSON format.
+      systemInstruction: `You are an elite high-ticket web designer and direct-response copywriter.
+      Your goal is to design a "$5000 Landing Page" for a user in structured JSON format.
       
       PRINCIPLES:
       1. LUXURY & TRUST: Use high-end, benefit-driven copy.
-      2. CONVERSION PSYCHOLOGY: address pain points, offer solutions, show social proof.
-      3. VISUAL HIERARCHY: Structure content for scanning (bullets, short headers).
-      4. ISRAELI MARKET: Use natural, persuasive Hebrew (slang allowed where appropriate, but mostly professional).
+      2. CONVERSION PSYCHOLOGY: Use the PAS framework (Problem-Agitation-Solution).
+      3. VISUAL HIERARCHY: Structure content for scanning.
+      4. ISRAELI MARKET: Use natural, persuasive Hebrew (slang allowed but professional).
+      5. COMPLETENESS: Fill ALL fields. No placeholders.
       `,
     });
 
     const fullPrompt = `
-      GENERATE A LANDING PAGE FOR: "${prompt}".
+      GENERATE A PREMIUM LANDING PAGE FOR: "${prompt}".
       
       STRICT OUTPUT CONTRACT:
       - Return VALID JSON ONLY.
       - No markdown codes (\`\`\`json).
       - Language: Hebrew (RTL).
       
-      REQUIRED JSON STRUCTURE:
+      REQUIRED JSON STRUCTURE (Must match exactly):
       {
-        "title": "Brand Name (2-3 words)",
         "hero": {
           "title": "Main Headline (Power promise, 6-10 words)",
-          "subtitle": "Subheadline clarifying the offer (15-20 words)",
-          "cta": "Action Button Text",
+          "description": "Subheadline clarifying the offer (15-20 words) - Focus on the outcome",
+          "cta": "Action Button Text (e.g., Start Now)",
           "trust_text": "e.g. 'Join 500+ happy customers'"
         },
         "features": [
-          { "title": "Benefit 1", "desc": "Short explanation", "icon": "emoji like 🚀" },
-          { "title": "Benefit 2", "desc": "Short explanation", "icon": "emoji like 💎" },
-          { "title": "Benefit 3", "desc": "Short explanation", "icon": "emoji like 🛡️" }
+          { "title": "Benefit 1", "desc": "Short explanation focusing on value", "icon": "emoji" },
+          { "title": "Benefit 2", "desc": "Short explanation focusing on value", "icon": "emoji" },
+          { "title": "Benefit 3", "desc": "Short explanation focusing on value", "icon": "emoji" }
         ],
         "steps": [
-          { "title": "Step 1", "desc": "What happens first" },
-          { "title": "Step 2", "desc": "What happens next" },
-          { "title": "Step 3", "desc": "The result" }
+          { "title": "Step 1", "desc": "Actionable step" },
+          { "title": "Step 2", "desc": "Actionable step" },
+          { "title": "Step 3", "desc": "Desired result" }
         ],
         "testimonials": [
-          { "name": "Israeli Name", "role": "Customer Role", "text": "Short raving review (Hebrew)" },
-          { "name": "Israeli Name", "role": "Customer Role", "text": "Short raving review (Hebrew)" }
+          { "name": "Israeli Name", "role": "Job Title", "text": "Specific praise about the result (Hebrew)" },
+          { "name": "Israeli Name", "role": "Job Title", "text": "Specific praise about the result (Hebrew)" }
         ],
         "faq": [
-          { "q": "Common objection?", "a": "Soothing answer" },
-          { "q": "Another objection?", "a": "Confident answer" }
+          { "q": "Real objection?", "a": "Soothing, confident answer" },
+          { "q": "Real objection?", "a": "Soothing, confident answer" },
+          { "q": "Real objection?", "a": "Soothing, confident answer" }
         ],
         "style": {
-          "primaryColor": "A premium gradient colors (start hex)",
-          "secondaryColor": "A complementary hex",
-          "backgroundColor": "#ffffff or #0f172a (dark)"
+          "primaryColor": "A premium gradient start hex code",
+          "secondaryColor": "A complementary hex code",
+          "backgroundColor": "#ffffff" 
         },
-        "cta_button": "Final Urgency Button"
+        "cta_button": "Final Urgency Button",
+        "cta_text": "Final call to action text"
       }
 
       TONE: ${theme === 'dark' ? 'Exclusive, High-Tech, Mysterious' : 'Clean, Professional, Trustworthy'}.

@@ -3,57 +3,80 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import UpgradeModal from '@/components/UpgradeModal';
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
     const [user, setUser] = useState({
         name: "",
+        uid: null,
         isPro: false,
-        loading: true
+        loading: true // Global loading state including auth & PRO check
     });
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [businessData, setBusinessData] = useState(null);
 
     useEffect(() => {
-        // 1. Initial load from LocalStorage for speed
-        const savedName = localStorage.getItem("userName") || "";
-        const savedPro = localStorage.getItem("isPro") === "true";
-        setUser(prev => ({ ...prev, name: savedName, isPro: savedPro, loading: false }));
+        let unsubscribeFirestore = null;
 
-        // 2. Sync with Firestore (Source of Truth)
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        // 1. Auth Listener
+        const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+            // Cleanup previous Firestore listener if user context changes
+            if (unsubscribeFirestore) {
+                unsubscribeFirestore();
+                unsubscribeFirestore = null;
+            }
+
             if (currentUser) {
-                try {
-                    const userRef = doc(db, "users", currentUser.uid);
-                    const userSnap = await getDoc(userRef);
-                    if (userSnap.exists()) {
-                        const data = userSnap.data();
+                // User is authenticated, wait for Firestore PRO status
+                const userRef = doc(db, "users", currentUser.uid);
+
+                // 2. Real-time PRO Sync (Single Source of Truth)
+                unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
                         const isProDb = data.isPro === true;
 
-                        // Only update if different to avoid loops/renders
-                        if (isProDb !== savedPro) {
-                            localStorage.setItem("isPro", isProDb ? "true" : "false");
-                            setUser(prev => ({ ...prev, isPro: isProDb, name: data.name || prev.name }));
-                        }
+                        // We can cache in localStorage for UI flicker prevention, but gating logic relies on state
+                        localStorage.setItem("isPro", isProDb ? "true" : "false");
+
+                        setUser({
+                            uid: currentUser.uid,
+                            name: data.name || currentUser.displayName,
+                            isPro: isProDb,
+                            loading: false // Fully loaded
+                        });
+                    } else {
+                        // User valid in Auth but no DB record yet (e.g. creating)
+                        setUser({
+                            uid: currentUser.uid,
+                            name: currentUser.displayName,
+                            isPro: false,
+                            loading: false
+                        });
                     }
-                } catch (e) {
-                    console.error("Error syncing user data:", e);
-                }
+                }, (error) => {
+                    console.error("Firestore sync error:", error);
+                    // On error, stop loading and fallback to false/safest state
+                    setUser(prev => ({ ...prev, loading: false }));
+                });
+
+            } else {
+                // Logged out
+                localStorage.removeItem("isPro");
+                setUser({ name: "", uid: null, isPro: false, loading: false });
             }
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeFirestore) unsubscribeFirestore();
+        };
     }, []);
 
-    const updateUserName = (name) => {
-        localStorage.setItem("userName", name);
-        setUser(prev => ({ ...prev, name }));
-    };
-
+    // Helper for optimistic updates if needed, though mostly we rely on Firestore listener
     const setProStatus = (status) => {
-        localStorage.setItem("isPro", status ? "true" : "false");
         setUser(prev => ({ ...prev, isPro: status }));
     };
 
@@ -68,14 +91,13 @@ export const UserProvider = ({ children }) => {
 
     const logout = () => {
         localStorage.clear();
-        setUser({ name: "", isPro: false, loading: false });
+        setUser({ name: "", uid: null, isPro: false, loading: false });
         window.location.href = "/";
     };
 
     return (
         <UserContext.Provider value={{
-            ...user,
-            updateUserName,
+            ...user, // exposes name, uid, isPro, loading
             setProStatus,
             logout,
             openUpgradeModal,
@@ -93,3 +115,9 @@ export const UserProvider = ({ children }) => {
 };
 
 export const useUser = () => useContext(UserContext);
+
+// Shared hook alias as requested
+export const useProStatus = () => {
+    const { isPro, loading } = useUser();
+    return { isPro, loadingPro: loading };
+};
