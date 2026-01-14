@@ -61,16 +61,42 @@ function SimulateContent() {
                     if (isMounted) setProgress(currentProgress);
                 }, 800);
 
-                const res = await fetch("/api/generate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt: initialData.prompt })
-                });
+                // בתוך initSimulation, החלף את ה-fetch הקיים בבלוק הזה:
+                try {
+                    const response = await fetch("/api/generate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt: initialData.prompt }),
+                    });
 
-                const json = await res.json();
-                clearInterval(progressInterval);
+                    // שלב 1: קודם כל נקרא את הטקסט הגולמי
+                    const text = await response.text();
 
-                if (json && !json.error) {
+                    // בדיקה: האם קיבלנו בכלל משהו?
+                    if (!text) {
+                        throw new Error("השרת החזיר תשובה ריקה (אולי Timeout?)");
+                    }
+
+                    // שלב 2: ננסה להמיר ל-JSON
+                    let json;
+                    try {
+                        json = JSON.parse(text);
+                    } catch (e) {
+                        console.error("Failed to parse JSON:", text); // נראה בלוג מה באמת קיבלנו (אולי שגיאת HTML)
+                        throw new Error("התשובה מהשרת אינה תקינה");
+                    }
+
+                    // שלב 3: בדיקת שגיאות לוגיות מהשרת
+                    if (!response.ok) {
+                        throw new Error(json.error || `שגיאת שרת: ${response.status}`);
+                    }
+
+                    // הצלחה!
+                    // setSiteData(json);
+                    // saveSiteToHistory(json); // שמירה להיסטוריה - הוחלף בלוגיקה המקורית למטה:
+
+                    clearInterval(progressInterval);
+
                     const html = renderHtml(json);
                     const fullData = { ...initialData, content: json, html };
 
@@ -89,16 +115,14 @@ function SimulateContent() {
                         setProgress(100);
                         setLoading(false);
                     }
-                } else {
-                    console.error("Generation failed:", json.error);
-                    if (isMounted) setError(json.error || "שגיאה ביצירת האתר");
+
+                } catch (err) {
+                    console.error("Simulation error:", err);
+                    if (isMounted) setError(err.message || "שגיאה ביצירת האתר");
                     if (isMounted) setLoading(false);
                 }
-
-            } catch (err) {
-                console.error("Simulation error:", err);
-                if (isMounted) setError("שגיאה בתקשורת עם השרת");
-                if (isMounted) setLoading(false);
+            } catch (error) {
+                console.error("Init simulation error:", error);
             }
         }
 

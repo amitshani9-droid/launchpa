@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+export const maxDuration = 60; // מגדיר זמן ריצה מקסימלי של 60 שניות
+export const dynamic = 'force-dynamic';
+
 export async function POST(req) {
   try {
     const body = await req.json();
